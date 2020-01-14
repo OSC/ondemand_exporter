@@ -1,5 +1,5 @@
 go:
-  version: 1.13.6
+  version: 1.13
   cgo: false
 repository:
     path: github.com/OSC/ondemand_exporter
