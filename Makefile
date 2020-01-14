@@ -1,7 +1,8 @@
 PROMU := $(shell go env GOPATH)/bin/promu
+PREFIX ?= $(shell pwd)
 
 build: promu
-	@$(PROMU) build --verbose
+	@$(PROMU) build --verbose --prefix $(PREFIX)
 
 promu:
 	@GOOS=$(shell uname -s | tr A-Z a-z) \
