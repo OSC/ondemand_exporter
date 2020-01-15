@@ -26,7 +26,8 @@ const (
 )
 
 var (
-	listenAddr = kingpin.Flag("listen", "Address on which to expose metrics.").Default(":9301").String()
+	listenAddr  = kingpin.Flag("listen", "Address on which to expose metrics.").Default(":9301").String()
+	execCommand = exec.Command
 )
 
 type Exporter struct {
@@ -171,18 +172,17 @@ func sliceContains(slice []string, str string) bool {
 	return false
 }
 
-func (e *Exporter) getActivePuns() error {
-	e.puns = nil
-	out, err := exec.Command("sudo", "/opt/ood/nginx_stage/sbin/nginx_stage", "nginx_list").Output()
+func getActivePuns() ([]string, error) {
+	var puns []string
+	out, err := execCommand("sudo", "/opt/ood/nginx_stage/sbin/nginx_stage", "nginx_list").Output()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	lines := strings.Split(string(out), "\n")
 	for _, l := range lines {
-		e.puns = append(e.puns, l)
+		puns = append(puns, l)
 	}
-	e.active_puns.Set(float64(len(e.puns)))
-	return nil
+	return puns, nil
 }
 
 func (e *Exporter) getProcessMetrics() error {
@@ -338,9 +338,12 @@ func (e *Exporter) collect(ch chan<- prometheus.Metric) error {
 	defer e.client_connections.Collect(ch)
 	defer e.unique_client_connections.Collect(ch)
 	defer e.unique_websocket_clients.Collect(ch)
-	if err := e.getActivePuns(); err != nil {
+	puns, err := getActivePuns()
+	if err != nil {
 		return err
 	}
+	e.active_puns.Set(float64(len(puns)))
+	e.puns = puns
 	if err := e.getProcessMetrics(); err != nil {
 		return err
 	}
