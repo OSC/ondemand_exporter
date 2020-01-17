@@ -286,20 +286,29 @@ func (e *Exporter) getApacheMetrics() error {
 	}
 	var headers []string
 	var connections []connection
-	doc.Find("table").First().Each(func(index int, tablehtml *goquery.Selection) {
-		tablehtml.Find("tr").Each(func(indextr int, rowhtml *goquery.Selection) {
-			conn := connection{}
-			rowhtml.Find("th").Each(func(indexth int, tableheading *goquery.Selection) {
-				headers = append(headers, tableheading.Text())
-			})
-			rowhtml.Find("td").Each(func(indextd int, tablecell *goquery.Selection) {
-				key := headers[indextd]
-				value := tablecell.Text()
-				conn[key] = value
-			})
-			connections = append(connections, conn)
+	var tableFound bool
+	doc.Find("table").EachWithBreak(func(index int, tablehtml *goquery.Selection) bool {
+		tablehtml.Find("th").First().Each(func(indextr int, tableheading *goquery.Selection) {
+			if tableheading.Text() == "Srv" {
+				tableFound = true
+			}
 		})
-
+		if tableFound {
+			tablehtml.Find("tr").Each(func(indextr int, rowhtml *goquery.Selection) {
+				conn := connection{}
+				rowhtml.Find("th").Each(func(indexth int, tableheading *goquery.Selection) {
+					headers = append(headers, tableheading.Text())
+				})
+				rowhtml.Find("td").Each(func(indextd int, tablecell *goquery.Selection) {
+					key := headers[indextd]
+					value := tablecell.Text()
+					conn[key] = value
+				})
+				connections = append(connections, conn)
+			})
+			return false
+		}
+		return true
 	})
 	var websocket_connections, client_connections int
 	var clients []string
