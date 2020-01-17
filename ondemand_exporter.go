@@ -215,15 +215,17 @@ func (e *Exporter) getProcessMetrics() error {
 	if err != nil {
 		return err
 	}
+	log.Debugf("Getting process for PUNS: %v", e.puns)
 	for _, proc := range procs {
 		user, _ := proc.Username()
 		if user == "root" {
 			continue
 		}
+		cmdline, _ := proc.Cmdline()
 		if punProc := sliceContains(e.puns, user); !punProc {
+			log.Debugf("Skip proc not owned by PUN user=%s cmdline=%s", user, cmdline)
 			continue
 		}
-		cmdline, _ := proc.Cmdline()
 		if strings.Contains(cmdline, "rack-loader.rb") {
 			rackApps++
 		} else if strings.Contains(cmdline, "Passenger NodeApp") {
