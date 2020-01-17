@@ -8,7 +8,7 @@ format:
 	go fmt $(pkgs)
 
 test:
-	go test -short $(pkgs)
+	go test -v -short $(pkgs)
 
 build: promu
 	@$(PROMU) build --verbose --prefix $(PREFIX)

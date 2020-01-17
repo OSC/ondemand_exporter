@@ -26,8 +26,12 @@ const (
 )
 
 var (
-	listenAddr  = kingpin.Flag("listen", "Address on which to expose metrics.").Default(":9301").String()
-	execCommand = exec.Command
+	listenAddr    = kingpin.Flag("listen", "Address on which to expose metrics.").Default(":9301").String()
+	apacheStatus  = kingpin.Flag("apache-status", "URL to collect Apache status from").Default("").String()
+	execCommand   = exec.Command
+	osHostname    = os.Hostname
+	oodPortalPath = "/etc/ood/config/ood_portal.yml"
+	fqdn          = "localhost"
 )
 
 type Exporter struct {
@@ -51,46 +55,82 @@ type Exporter struct {
 }
 
 type oodPortal struct {
-	servername string `yaml:"servername"`
-	port       string `yaml:"port"`
+	Servername string `yaml:"servername"`
+	Port       string `yaml:"port"`
 }
 
 type connection map[string]interface{}
 
-func (e *Exporter) setServerName() error {
-	data, err := ioutil.ReadFile("/etc/ood/config/ood_portal.yml")
+func getFQDN() string {
+	hostname, err := osHostname()
 	if err != nil {
-		return err
+		log.Infof("Unable to determine FQDN: %v", err)
+		return fqdn
 	}
+	return hostname
+}
+
+func getApacheStatusURL() string {
+	defaultApacheStatusURL := "http://" + fqdn + "/server-status"
 	var config oodPortal
+	var servername, port, apacheStatus string
+	_, statErr := os.Stat(oodPortalPath)
+	if os.IsNotExist(statErr) {
+		log.Infof("File %s not found, using default Apache status URL", oodPortalPath)
+		return defaultApacheStatusURL
+	}
+	data, err := ioutil.ReadFile(oodPortalPath)
+	if err != nil {
+		log.Errorf("Error reading %s: %v", oodPortalPath, err)
+		return defaultApacheStatusURL
+	}
+	log.Infof("DATA: %v", string(data))
 	if err := yaml.Unmarshal(data, &config); err != nil {
-		return err
+		log.Errorf("Error parsing %s: %v", oodPortalPath, err)
+		return defaultApacheStatusURL
 	}
-	fqdn, fqdnerr := os.Hostname()
-	e.fqdn = fqdn
-	var servername string
-	var port string
-	if config.servername != "" {
-		servername = config.servername
+	log.Infof("Parsed %s servername=%s port=%s config=%v", oodPortalPath, config.Servername, config.Port, config)
+	if config.Servername != "" {
+		servername = config.Servername
 	} else {
-		if fqdnerr != nil {
-			servername = "localhost"
-			e.fqdn = "localhost"
-		} else {
-			servername = fqdn
-		}
+		servername = fqdn
 	}
-	if config.port != "" {
-		port = config.port
+	if config.Port != "" {
+		port = config.Port
 	} else {
 		port = "80"
 	}
 	if port != "80" {
-		e.apacheStatus = "https://" + servername + "/server-status"
+		apacheStatus = "https://" + servername + "/server-status"
 	} else {
-		e.apacheStatus = "http://" + servername + "/server-status"
+		apacheStatus = "http://" + servername + "/server-status"
 	}
-	return nil
+	return apacheStatus
+}
+
+func sliceContains(slice []string, str string) bool {
+	for _, s := range slice {
+		if str == s {
+			return true
+		}
+	}
+	return false
+}
+
+func getActivePuns() ([]string, error) {
+	var puns []string
+	out, err := execCommand("sudo", "/opt/ood/nginx_stage/sbin/nginx_stage", "nginx_list").Output()
+	if err != nil {
+		return nil, err
+	}
+	lines := strings.Split(string(out), "\n")
+	for _, l := range lines {
+		if l == "" {
+			continue
+		}
+		puns = append(puns, l)
+	}
+	return puns, nil
 }
 
 func NewExporter() *Exporter {
@@ -161,28 +201,6 @@ func NewExporter() *Exporter {
 			},
 		},
 	}
-}
-
-func sliceContains(slice []string, str string) bool {
-	for _, s := range slice {
-		if str == s {
-			return true
-		}
-	}
-	return false
-}
-
-func getActivePuns() ([]string, error) {
-	var puns []string
-	out, err := execCommand("sudo", "/opt/ood/nginx_stage/sbin/nginx_stage", "nginx_list").Output()
-	if err != nil {
-		return nil, err
-	}
-	lines := strings.Split(string(out), "\n")
-	for _, l := range lines {
-		puns = append(puns, l)
-	}
-	return puns, nil
 }
 
 func (e *Exporter) getProcessMetrics() error {
@@ -390,8 +408,15 @@ func main() {
 	log.Infoln("Build context", version.BuildContext())
 	log.Infof("Starting Server: %s", *listenAddr)
 
+	fqdn = getFQDN()
+
 	exporter := NewExporter()
-	exporter.setServerName()
+	if *apacheStatus == "" {
+		exporter.apacheStatus = getApacheStatusURL()
+	} else {
+		exporter.apacheStatus = *apacheStatus
+	}
+
 	prometheus.MustRegister(exporter)
 	prometheus.MustRegister(version.NewCollector("ondemand_exporter"))
 
