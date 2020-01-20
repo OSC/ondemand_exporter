@@ -77,11 +77,20 @@ groupadd -r ondemand_exporter
 useradd -r -d /var/lib/ondemand_exporter -s /sbin/nologin -M -g ondemand_exporter -M ondemand_exporter
 ```
 
-Build `ondemand_exporter` and install.
+If building from source, build `ondemand_exporter` and install.
 
 ```
 make build
 cp ondemand_exporter /usr/local/bin/ondemand_exporter
+```
+
+If using pre-compiled binaries, download the necessary asset and install the binari.
+
+```
+VERSION=0.1.0
+curl -o /tmp/ondemand_exporter-${VERSION}.tar.gz https://github.com/OSC/ondemand_exporter/releases/download/v${VERSION}/ondemand_exporter-${VERSION}.linux-amd64.tar.gz
+tar xf /tmp/ondemand-${VERSION}.tar.gz -C /tmp --strip-components=1
+cp /tmp/ondemand_exporter /usr/local/bin/ondemand_exporter
 ```
 
 Add sudo rule
