@@ -98,12 +98,12 @@ func getApacheStatusURL() string {
 		log.Errorf("Error reading %s: %v", oodPortalPath, err)
 		return defaultApacheStatusURL
 	}
-	log.Infof("DATA: %v", string(data))
+	log.Debugf("DATA: %v", string(data))
 	if err := yaml.Unmarshal(data, &config); err != nil {
 		log.Errorf("Error parsing %s: %v", oodPortalPath, err)
 		return defaultApacheStatusURL
 	}
-	log.Infof("Parsed %s servername=%s port=%s config=%v", oodPortalPath, config.Servername, config.Port, config)
+	log.Debugf("Parsed %s servername=%s port=%s config=%v", oodPortalPath, config.Servername, config.Port, config)
 	if config.Servername != "" {
 		servername = config.Servername
 	} else {
