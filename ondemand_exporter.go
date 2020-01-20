@@ -368,6 +368,7 @@ func metricsHandler() http.HandlerFunc {
     	fqdn = getFQDN()
 
     	exporter := NewExporter()
+        exporter.fqdn = fqdn
     	if *apacheStatus == "" {
     		exporter.apacheStatus = getApacheStatusURL()
     	} else {
