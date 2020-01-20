@@ -1,7 +1,8 @@
 # Open OnDemand Prometheus exporter
 
-[![OSC](https://circleci.com/gh/OSC/ondemand_exporter.svg?style=svg)](https://circleci.com/gh/OSC/ondemand_exporter)
-
+[![Build Status](https://circleci.com/gh/OSC/ondemand_exporter/tree/master.svg?style=shield)](https://circleci.com/gh/OSC/ondemand_exporter)
+[![GitHub release](https://img.shields.io/github/v/release/OSC/ondemand_exporter?include_prereleases&sort=semver)](https://github.com/OSC/ondemand_exporter/releases/latest)
+![GitHub All Releases](https://img.shields.io/github/downloads/OSC/ondemand_exporter/total)
 
 ## Metrics
 
