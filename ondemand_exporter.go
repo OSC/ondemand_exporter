@@ -43,7 +43,6 @@ type Exporter struct {
 	ActivePuns              *prometheus.Desc
 	RackApps                *prometheus.Desc
 	NodeApps                *prometheus.Desc
-	PunCpuTime              *prometheus.Desc
 	PunCpuPercent           *prometheus.Desc
 	PunMemory               *prometheus.Desc
 	PunMemoryPercent        *prometheus.Desc
@@ -57,8 +56,6 @@ type Exporter struct {
 type ProcessMetrics struct {
 	RackApps         int
 	NodeApps         int
-	PunCpuTimeUser   float64
-	PunCpuTimeSys    float64
 	PunCpuPercent    float64
 	PunMemoryRSS     uint64
 	PunMemoryVMS     uint64
@@ -154,8 +151,6 @@ func getProcessMetrics(puns []string) (ProcessMetrics, error) {
 	var metrics ProcessMetrics
 	rackApps := 0
 	nodeApps := 0
-	var pun_cpu_time_user float64
-	var pun_cpu_time_sys float64
 	var pun_cpu_percent float64
 	var pun_memory_rss uint64
 	var pun_memory_vms uint64
@@ -181,13 +176,6 @@ func getProcessMetrics(puns []string) (ProcessMetrics, error) {
 		} else if strings.Contains(cmdline, "Passenger NodeApp") {
 			nodeApps++
 		}
-		cputime, err := proc.Times()
-		if err == nil {
-			cpuuser := cputime.User
-			cpusys := cputime.System
-			pun_cpu_time_user = pun_cpu_time_user + cpuuser
-			pun_cpu_time_sys = pun_cpu_time_sys + cpusys
-		}
 		cpupercent, _ := proc.CPUPercent()
 		pun_cpu_percent = pun_cpu_percent + cpupercent
 		log.Debugf("PUN user=%s, cmd=%s cpupercent=%f total=%f", user, cmdline, cpupercent, pun_cpu_percent)
@@ -208,8 +196,6 @@ func getProcessMetrics(puns []string) (ProcessMetrics, error) {
 	log.Debugf("Cores %d New CPU percent: %f", cores, newcpupercent)
 	metrics.RackApps = rackApps
 	metrics.NodeApps = nodeApps
-	metrics.PunCpuTimeUser = pun_cpu_time_user
-	metrics.PunCpuTimeSys = pun_cpu_time_sys
 	metrics.PunCpuPercent = pun_cpu_percent
 	metrics.PunMemoryRSS = pun_memory_rss
 	metrics.PunMemoryVMS = pun_memory_vms
@@ -311,7 +297,6 @@ func NewExporter() *Exporter {
 		ActivePuns:              prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "active_puns"), "Active PUNs", nil, nil),
 		RackApps:                prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "rack_apps"), "Number of running Rack apps", nil, nil),
 		NodeApps:                prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "node_apps"), "Number of running NodeJS apps", nil, nil),
-		PunCpuTime:              prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "pun_cpu_time"), "CPU time of all PUNs", []string{"mode"}, nil),
 		PunCpuPercent:           prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "pun_cpu_percent"), "Percent CPU of all PUNs", nil, nil),
 		PunMemory:               prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "pun_memory"), "Memory used by all PUNs", []string{"type"}, nil),
 		PunMemoryPercent:        prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "pun_memory_percent"), "Percent memory of all PUNs", nil, nil),
@@ -346,8 +331,6 @@ func (e *Exporter) collect(ch chan<- prometheus.Metric) error {
 	}
 	ch <- prometheus.MustNewConstMetric(e.RackApps, prometheus.GaugeValue, float64(processMetrics.RackApps))
 	ch <- prometheus.MustNewConstMetric(e.NodeApps, prometheus.GaugeValue, float64(processMetrics.NodeApps))
-	ch <- prometheus.MustNewConstMetric(e.PunCpuTime, prometheus.CounterValue, float64(processMetrics.PunCpuTimeUser), "user")
-	ch <- prometheus.MustNewConstMetric(e.PunCpuTime, prometheus.CounterValue, float64(processMetrics.PunCpuTimeSys), "sys")
 	ch <- prometheus.MustNewConstMetric(e.PunCpuPercent, prometheus.GaugeValue, float64(processMetrics.PunCpuPercent))
 	ch <- prometheus.MustNewConstMetric(e.PunMemory, prometheus.GaugeValue, float64(processMetrics.PunMemoryRSS), "rss")
 	ch <- prometheus.MustNewConstMetric(e.PunMemory, prometheus.GaugeValue, float64(processMetrics.PunMemoryVMS), "vms")
