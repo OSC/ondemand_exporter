@@ -298,7 +298,7 @@ func NewExporter() *Exporter {
 		RackApps:                prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "rack_apps"), "Number of running Rack apps", nil, nil),
 		NodeApps:                prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "node_apps"), "Number of running NodeJS apps", nil, nil),
 		PunCpuPercent:           prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "pun_cpu_percent"), "Percent CPU of all PUNs", nil, nil),
-		PunMemory:               prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "pun_memory"), "Memory used by all PUNs", []string{"type"}, nil),
+		PunMemory:               prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "pun_memory_bytes"), "Memory used by all PUNs in bytes", []string{"type"}, nil),
 		PunMemoryPercent:        prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "pun_memory_percent"), "Percent memory of all PUNs", nil, nil),
 		WebsocketConnections:    prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "websocket_connections"), "Number of websocket connections", nil, nil),
 		UniqueWebsocketClients:  prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "unique_websocket_clients"), "Unique websocket connections", nil, nil),
