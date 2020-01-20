@@ -36,7 +36,7 @@ To produce the `ondemand_exporter` binary:
 make build
 ```
 
-## Install
+## Setup
 
 Ensure the user running `ondemand_exporter` can execute `/opt/ood/nginx_stage/sbin/nginx_stage nginx_list`.
 The following sudo config assumes `ondemand_exporter` is running as `ondemand_exporter`.
