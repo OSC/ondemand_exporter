@@ -36,22 +36,39 @@ var (
 
 type Exporter struct {
 	sync.Mutex
-	apacheStatus              string
-	fqdn                      string
-	httpClient                *http.Client
-	puns                      []string
-	active_puns               prometheus.Gauge
-	rack_apps                 prometheus.Gauge
-	node_apps                 prometheus.Gauge
-	pun_cpu_time              *prometheus.CounterVec
-	pun_cpu_percent           prometheus.Gauge
-	pun_memory                *prometheus.GaugeVec
-	pun_memory_percent        prometheus.Gauge
-	websocket_connections     prometheus.Gauge
-	client_connections        prometheus.Gauge
-	unique_client_connections prometheus.Gauge
-	unique_websocket_clients  prometheus.Gauge
-	scrapeFailures            prometheus.Counter
+	apacheStatus            string
+	fqdn                    string
+	httpClient              *http.Client
+	puns                    []string
+	ActivePuns              *prometheus.Desc
+	RackApps                *prometheus.Desc
+	NodeApps                *prometheus.Desc
+	PunCpuTime              *prometheus.Desc
+	PunCpuPercent           *prometheus.Desc
+	PunMemory               *prometheus.Desc
+	PunMemoryPercent        *prometheus.Desc
+	WebsocketConnections    *prometheus.Desc
+	ClientConnections       *prometheus.Desc
+	UniqueClientConnections *prometheus.Desc
+	UniqueWebsocketClients  *prometheus.Desc
+	scrapeFailures          prometheus.Counter
+}
+
+type ProcessMetrics struct {
+	RackApps         int
+	NodeApps         int
+	PunCpuTimeUser   float64
+	PunCpuTimeSys    float64
+	PunCpuPercent    float64
+	PunMemoryRSS     uint64
+	PunMemoryVMS     uint64
+	PunMemoryPercent float32
+}
+type ApacheMetrics struct {
+	WebsocketConnections    int
+	ClientConnections       int
+	UniqueWebsocketClients  int
+	UniqueClientConnections int
 }
 
 type oodPortal struct {
@@ -133,79 +150,12 @@ func getActivePuns() ([]string, error) {
 	return puns, nil
 }
 
-func NewExporter() *Exporter {
-	return &Exporter{
-		active_puns: prometheus.NewGauge(prometheus.GaugeOpts{
-			Namespace: namespace,
-			Name:      "active_puns",
-			Help:      "Active PUNs",
-		}),
-		rack_apps: prometheus.NewGauge(prometheus.GaugeOpts{
-			Namespace: namespace,
-			Name:      "rack_apps",
-			Help:      "Number of running Rack apps",
-		}),
-		node_apps: prometheus.NewGauge(prometheus.GaugeOpts{
-			Namespace: namespace,
-			Name:      "node_apps",
-			Help:      "Number of running NodeJS apps",
-		}),
-		pun_cpu_time: prometheus.NewCounterVec(prometheus.CounterOpts{
-			Namespace: namespace,
-			Name:      "pun_cpu_time",
-			Help:      "CPU time of all PUNs",
-		}, []string{"mode"}),
-		pun_cpu_percent: prometheus.NewGauge(prometheus.GaugeOpts{
-			Namespace: namespace,
-			Name:      "pun_cpu_percent",
-			Help:      "Percent CPU of all PUNs",
-		}),
-		pun_memory: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Namespace: namespace,
-			Name:      "pun_memory",
-			Help:      "Memory used by all PUNs",
-		}, []string{"type"}),
-		pun_memory_percent: prometheus.NewGauge(prometheus.GaugeOpts{
-			Namespace: namespace,
-			Name:      "pun_memory_percent",
-			Help:      "Percent memory of all PUNs",
-		}),
-		websocket_connections: prometheus.NewGauge(prometheus.GaugeOpts{
-			Namespace: namespace,
-			Name:      "websocket_connections",
-			Help:      "Number of Websocket Connections",
-		}),
-		unique_websocket_clients: prometheus.NewGauge(prometheus.GaugeOpts{
-			Namespace: namespace,
-			Name:      "unique_websocket_clients",
-			Help:      "Number of unique Websocket Connections",
-		}),
-		client_connections: prometheus.NewGauge(prometheus.GaugeOpts{
-			Namespace: namespace,
-			Name:      "client_connections",
-			Help:      "Number of client connections",
-		}),
-		unique_client_connections: prometheus.NewGauge(prometheus.GaugeOpts{
-			Namespace: namespace,
-			Name:      "unique_client_connections",
-			Help:      "Number of unique client Connections",
-		}),
-		scrapeFailures: prometheus.NewCounter(prometheus.CounterOpts{
-			Namespace: namespace,
-			Name:      "exporter_scrape_failures_total",
-			Help:      "Number of errors while collecting metrics.",
-		}),
-		httpClient: &http.Client{
-			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-			},
-		},
-	}
-}
-
-func (e *Exporter) getProcessMetrics() error {
+func getProcessMetrics(puns []string) (ProcessMetrics, error) {
+	var metrics ProcessMetrics
 	rackApps := 0
 	nodeApps := 0
+	var pun_cpu_time_user float64
+	var pun_cpu_time_sys float64
 	var pun_cpu_percent float64
 	var pun_memory_rss uint64
 	var pun_memory_vms uint64
@@ -213,16 +163,16 @@ func (e *Exporter) getProcessMetrics() error {
 	cores := runtime.NumCPU()
 	procs, err := process.Processes()
 	if err != nil {
-		return err
+		return ProcessMetrics{}, err
 	}
-	log.Debugf("Getting process for PUNS: %v", e.puns)
+	log.Debugf("Getting process for PUNS: %v", puns)
 	for _, proc := range procs {
 		user, _ := proc.Username()
 		if user == "root" {
 			continue
 		}
 		cmdline, _ := proc.Cmdline()
-		if punProc := sliceContains(e.puns, user); !punProc {
+		if punProc := sliceContains(puns, user); !punProc {
 			log.Debugf("Skip proc not owned by PUN user=%s cmdline=%s", user, cmdline)
 			continue
 		}
@@ -235,8 +185,8 @@ func (e *Exporter) getProcessMetrics() error {
 		if err == nil {
 			cpuuser := cputime.User
 			cpusys := cputime.System
-			e.pun_cpu_time.WithLabelValues("user").Add(cpuuser)
-			e.pun_cpu_time.WithLabelValues("system").Add(cpusys)
+			pun_cpu_time_user = pun_cpu_time_user + cpuuser
+			pun_cpu_time_sys = pun_cpu_time_sys + cpusys
 		}
 		cpupercent, _ := proc.CPUPercent()
 		pun_cpu_percent = pun_cpu_percent + cpupercent
@@ -256,21 +206,23 @@ func (e *Exporter) getProcessMetrics() error {
 	log.Debugf("APPS rack=%d node=%d", rackApps, nodeApps)
 	newcpupercent := pun_cpu_percent / float64(cores)
 	log.Debugf("Cores %d New CPU percent: %f", cores, newcpupercent)
-	e.active_puns.Set(float64(len(e.puns)))
-	e.rack_apps.Set(float64(rackApps))
-	e.node_apps.Set(float64(nodeApps))
-	e.pun_cpu_percent.Set(newcpupercent)
-	e.pun_memory.WithLabelValues("rss").Set(float64(pun_memory_rss))
-	e.pun_memory.WithLabelValues("vms").Set(float64(pun_memory_vms))
-	e.pun_memory_percent.Set(float64(pun_memory_percent))
-	return nil
+	metrics.RackApps = rackApps
+	metrics.NodeApps = nodeApps
+	metrics.PunCpuTimeUser = pun_cpu_time_user
+	metrics.PunCpuTimeSys = pun_cpu_time_sys
+	metrics.PunCpuPercent = pun_cpu_percent
+	metrics.PunMemoryRSS = pun_memory_rss
+	metrics.PunMemoryVMS = pun_memory_vms
+	metrics.PunMemoryPercent = pun_memory_percent
+	return metrics, nil
 }
 
-func (e *Exporter) getApacheMetrics() error {
-	log.Infof("GET: %s", e.apacheStatus)
-	resp, err := http.Get(e.apacheStatus)
+func getApacheMetrics(apacheStatus string, fqdn string) (ApacheMetrics, error) {
+	var metrics ApacheMetrics
+	log.Infof("GET: %s", apacheStatus)
+	resp, err := http.Get(apacheStatus)
 	if err != nil {
-		return err
+		return metrics, err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
@@ -278,11 +230,11 @@ func (e *Exporter) getApacheMetrics() error {
 		if err != nil {
 			data = []byte(err.Error())
 		}
-		return fmt.Errorf("Status %s (%d): %s", resp.Status, resp.StatusCode, data)
+		return metrics, fmt.Errorf("Status %s (%d): %s", resp.Status, resp.StatusCode, data)
 	}
 	doc, err := goquery.NewDocumentFromReader(resp.Body)
 	if err != nil {
-		return err
+		return metrics, err
 	}
 	var headers []string
 	var connections []connection
@@ -314,7 +266,7 @@ func (e *Exporter) getApacheMetrics() error {
 	var clients []string
 	var unique_client_connections []string
 	var unique_websocket_clients []string
-	localClients := []string{e.fqdn, "localhost", "127.0.0.1"}
+	localClients := []string{fqdn, "localhost", "127.0.0.1"}
 	for _, c := range connections {
 		if _, ok := c["Client"]; !ok {
 			continue
@@ -347,53 +299,71 @@ func (e *Exporter) getApacheMetrics() error {
 			}
 		}
 	}
-	e.websocket_connections.Set(float64(websocket_connections))
-	e.client_connections.Set(float64(client_connections))
-	e.unique_client_connections.Set(float64(len(unique_client_connections)))
-	e.unique_websocket_clients.Set(float64(len(unique_websocket_clients)))
-	return nil
+	metrics.WebsocketConnections = websocket_connections
+	metrics.UniqueWebsocketClients = len(unique_websocket_clients)
+	metrics.ClientConnections = client_connections
+	metrics.UniqueClientConnections = len(unique_client_connections)
+	return metrics, nil
+}
+
+func NewExporter() *Exporter {
+	return &Exporter{
+		ActivePuns:              prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "active_puns"), "Active PUNs", nil, nil),
+		RackApps:                prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "rack_apps"), "Number of running Rack apps", nil, nil),
+		NodeApps:                prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "node_apps"), "Number of running NodeJS apps", nil, nil),
+		PunCpuTime:              prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "pun_cpu_time"), "CPU time of all PUNs", []string{"mode"}, nil),
+		PunCpuPercent:           prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "pun_cpu_percent"), "Percent CPU of all PUNs", nil, nil),
+		PunMemory:               prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "pun_memory"), "Memory used by all PUNs", []string{"type"}, nil),
+		PunMemoryPercent:        prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "pun_memory_percent"), "Percent memory of all PUNs", nil, nil),
+		WebsocketConnections:    prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "websocket_connections"), "Number of websocket connections", nil, nil),
+		UniqueWebsocketClients:  prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "unique_websocket_clients"), "Unique websocket connections", nil, nil),
+		ClientConnections:       prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "client_connections"), "Number of client connections", nil, nil),
+		UniqueClientConnections: prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "unique_client_connections"), "Unique client connections", nil, nil),
+		scrapeFailures: prometheus.NewCounter(prometheus.CounterOpts{
+			Namespace: namespace,
+			Subsystem: "exporter",
+			Name:      "scrape_failures_total",
+			Help:      "Number of errors while collecting metrics.",
+		}),
+		httpClient: &http.Client{
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			},
+		},
+	}
 }
 
 func (e *Exporter) collect(ch chan<- prometheus.Metric) error {
 	log.Info("Collecting metrics")
-	defer e.active_puns.Collect(ch)
-	defer e.rack_apps.Collect(ch)
-	defer e.node_apps.Collect(ch)
-	defer e.pun_cpu_time.Collect(ch)
-	defer e.pun_cpu_percent.Collect(ch)
-	defer e.pun_memory.Collect(ch)
-	defer e.pun_memory_percent.Collect(ch)
-	defer e.websocket_connections.Collect(ch)
-	defer e.client_connections.Collect(ch)
-	defer e.unique_client_connections.Collect(ch)
-	defer e.unique_websocket_clients.Collect(ch)
 	puns, err := getActivePuns()
 	if err != nil {
 		return err
 	}
-	e.active_puns.Set(float64(len(puns)))
-	e.puns = puns
-	if err := e.getProcessMetrics(); err != nil {
+	ch <- prometheus.MustNewConstMetric(e.ActivePuns, prometheus.GaugeValue, float64(len(puns)))
+	processMetrics, err := getProcessMetrics(puns)
+	if err != nil {
 		return err
 	}
-	if err := e.getApacheMetrics(); err != nil {
+	ch <- prometheus.MustNewConstMetric(e.RackApps, prometheus.GaugeValue, float64(processMetrics.RackApps))
+	ch <- prometheus.MustNewConstMetric(e.NodeApps, prometheus.GaugeValue, float64(processMetrics.NodeApps))
+	ch <- prometheus.MustNewConstMetric(e.PunCpuTime, prometheus.CounterValue, float64(processMetrics.PunCpuTimeUser), "user")
+	ch <- prometheus.MustNewConstMetric(e.PunCpuTime, prometheus.CounterValue, float64(processMetrics.PunCpuTimeSys), "sys")
+	ch <- prometheus.MustNewConstMetric(e.PunCpuPercent, prometheus.GaugeValue, float64(processMetrics.PunCpuPercent))
+	ch <- prometheus.MustNewConstMetric(e.PunMemory, prometheus.GaugeValue, float64(processMetrics.PunMemoryRSS), "rss")
+	ch <- prometheus.MustNewConstMetric(e.PunMemory, prometheus.GaugeValue, float64(processMetrics.PunMemoryVMS), "vms")
+	ch <- prometheus.MustNewConstMetric(e.PunMemoryPercent, prometheus.GaugeValue, float64(processMetrics.PunMemoryPercent))
+	apacheMetrics, err := getApacheMetrics(e.apacheStatus, e.fqdn)
+	if err != nil {
 		return err
 	}
+	ch <- prometheus.MustNewConstMetric(e.WebsocketConnections, prometheus.GaugeValue, float64(apacheMetrics.WebsocketConnections))
+	ch <- prometheus.MustNewConstMetric(e.UniqueWebsocketClients, prometheus.GaugeValue, float64(apacheMetrics.UniqueWebsocketClients))
+	ch <- prometheus.MustNewConstMetric(e.ClientConnections, prometheus.GaugeValue, float64(apacheMetrics.ClientConnections))
+	ch <- prometheus.MustNewConstMetric(e.UniqueClientConnections, prometheus.GaugeValue, float64(apacheMetrics.UniqueClientConnections))
 	return nil
 }
 
 func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
-	e.active_puns.Describe(ch)
-	e.rack_apps.Describe(ch)
-	e.node_apps.Describe(ch)
-	e.pun_cpu_time.Describe(ch)
-	e.pun_cpu_percent.Describe(ch)
-	e.pun_memory.Describe(ch)
-	e.pun_memory_percent.Describe(ch)
-	e.websocket_connections.Describe(ch)
-	e.client_connections.Describe(ch)
-	e.unique_client_connections.Describe(ch)
-	e.unique_websocket_clients.Describe(ch)
 	e.scrapeFailures.Describe(ch)
 }
 
