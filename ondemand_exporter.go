@@ -205,7 +205,7 @@ func getProcessMetrics(puns []string) (ProcessMetrics, error) {
 
 func getApacheMetrics(apacheStatus string, fqdn string) (ApacheMetrics, error) {
 	var metrics ApacheMetrics
-	log.Infof("GET: %s", apacheStatus)
+	log.Debugf("GET: %s", apacheStatus)
 	resp, err := http.Get(apacheStatus)
 	if err != nil {
 		return metrics, err
@@ -319,7 +319,7 @@ func NewExporter() *Exporter {
 }
 
 func (e *Exporter) collect(ch chan<- prometheus.Metric) error {
-	log.Info("Collecting metrics")
+	log.Debug("Collecting metrics")
 	puns, err := getActivePuns()
 	if err != nil {
 		return err
@@ -394,7 +394,7 @@ func main() {
 	kingpin.HelpFlag.Short('h')
 	kingpin.Parse()
 
-	log.Infoln("Starting apache_exporter", version.Info())
+	log.Infoln("Starting ondemand_exporter", version.Info())
 	log.Infoln("Build context", version.BuildContext())
 	log.Infof("Starting Server: %s", *listenAddr)
 
