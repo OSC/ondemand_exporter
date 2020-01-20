@@ -31,8 +31,6 @@ func getProcessMetrics(puns []string) (ProcessMetrics, error) {
 	var metrics ProcessMetrics
 	rackApps := 0
 	nodeApps := 0
-	var pun_cpu_time_user float64
-	var pun_cpu_time_sys float64
 	var pun_cpu_percent float64
 	var pun_memory_rss uint64
 	var pun_memory_vms uint64
@@ -57,13 +55,6 @@ func getProcessMetrics(puns []string) (ProcessMetrics, error) {
 			rackApps++
 		} else if strings.Contains(cmdline, "Passenger NodeApp") {
 			nodeApps++
-		}
-		cputime, err := proc.Times()
-		if err == nil {
-			cpuuser := cputime.User
-			cpusys := cputime.System
-			pun_cpu_time_user = pun_cpu_time_user + cpuuser
-			pun_cpu_time_sys = pun_cpu_time_sys + cpusys
 		}
 		cpupercent, _ := proc.CPUPercent()
 		pun_cpu_percent = pun_cpu_percent + cpupercent
