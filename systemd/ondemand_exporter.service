@@ -6,7 +6,6 @@ After=basic.target network.target
 [Service]
 User=ondemand_exporter
 Group=ondemand_exporter
-EnvironmentFile=/etc/sysconfig/ondemand_exporter
 ExecStart=/usr/local/bin/ondemand_exporter \
 --listen=:9301 \
 --apache-status=http://localhost:80/server-status
