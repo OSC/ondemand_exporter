@@ -361,6 +361,32 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 	return
 }
 
+func metricsHandler() http.HandlerFunc {
+    return func(w http.ResponseWriter, r *http.Request) {
+        registry := prometheus.NewRegistry()
+
+    	fqdn = getFQDN()
+
+    	exporter := NewExporter()
+    	if *apacheStatus == "" {
+    		exporter.apacheStatus = getApacheStatusURL()
+    	} else {
+    		exporter.apacheStatus = *apacheStatus
+    	}
+
+    	registry.MustRegister(exporter)
+    	registry.MustRegister(version.NewCollector("ondemand_exporter"))
+
+        gatherers := prometheus.Gatherers{
+            prometheus.DefaultGatherer,
+            registry,
+        }
+
+        h := promhttp.HandlerFor(gatherers, promhttp.HandlerOpts{})
+        h.ServeHTTP(w, r)
+    }
+}
+
 func main() {
 	metricsEndpoint := "/metrics"
 	log.AddFlags(kingpin.CommandLine)
@@ -372,24 +398,12 @@ func main() {
 	log.Infoln("Build context", version.BuildContext())
 	log.Infof("Starting Server: %s", *listenAddr)
 
-	fqdn = getFQDN()
-
-	exporter := NewExporter()
-	if *apacheStatus == "" {
-		exporter.apacheStatus = getApacheStatusURL()
-	} else {
-		exporter.apacheStatus = *apacheStatus
-	}
-
-	prometheus.MustRegister(exporter)
-	prometheus.MustRegister(version.NewCollector("ondemand_exporter"))
-
-	http.Handle(metricsEndpoint, promhttp.Handler())
+	http.Handle(metricsEndpoint, metricsHandler())
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`<html>
              <head><title>OnDemand Exporter</title></head>
              <body>
-             <h1>Apache Exporter</h1>
+             <h1>OnDemand Exporter</h1>
              <p><a href='` + metricsEndpoint + `'>Metrics</a></p>
              </body>
              </html>`))
