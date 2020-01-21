@@ -4,6 +4,10 @@
 [![GitHub release](https://img.shields.io/github/v/release/OSC/ondemand_exporter?include_prereleases&sort=semver)](https://github.com/OSC/ondemand_exporter/releases/latest)
 ![GitHub All Releases](https://img.shields.io/github/downloads/OSC/ondemand_exporter/total)
 
+The OnDemand exporter collects metrics specific to Open OnDemand.
+
+All metrics are accessible via the `/metrics` location.
+
 ## Metrics
 
 * `ondemand_active_puns` - Number of active PUNs (from `nginx_stage nginx_list`)
@@ -28,15 +32,9 @@ Exporter metrics specific to status of the exporter
 * `--listen` - Listen address, defaults to `:9301`
 * `--apache-status` - The URL to reach Apache's mod_status `/server-status` URL. If undefined the value will be determined by reading `ood_portal.yml`.
 
-## Build
-
-To produce the `ondemand_exporter` binary:
-
-```
-make build
-```
-
 ## Setup
+
+### sudo
 
 Ensure the user running `ondemand_exporter` can execute `/opt/ood/nginx_stage/sbin/nginx_stage nginx_list`.
 The following sudo config assumes `ondemand_exporter` is running as `ondemand_exporter`.
@@ -46,6 +44,8 @@ Defaults:ondemand_exporter !syslog
 Defaults:ondemand_exporter !requiretty
 ondemand_exporter ALL=(ALL) NOPASSWD:/opt/ood/nginx_stage/sbin/nginx_stage nginx_list
 ```
+
+### Apache mod_status
 
 Must also ensure Apache `mod_status` is loaded and configured.
 The below example should have `SERVERNAME` replaced with OnDemand configured `servername` defined in `/etc/ood/config/ood_portal.yml`.
@@ -93,15 +93,7 @@ tar xf /tmp/ondemand-${VERSION}.tar.gz -C /tmp --strip-components=1
 cp /tmp/ondemand_exporter /usr/local/bin/ondemand_exporter
 ```
 
-Add sudo rule
-
-```
-cat > /etc/sudoers.d/ondemand_exporter <<EOF
-Defaults:ondemand_exporter !syslog
-Defaults:ondemand_exporter !requiretty
-ondemand_exporter ALL=(ALL) NOPASSWD:/opt/ood/nginx_stage/sbin/nginx_stage nginx_list
-EOF
-```
+Add sudo rule, see [sudo section](#sudo)
 
 Add systemd unit file and start service
 
@@ -111,7 +103,21 @@ systemctl daemon-reload
 systemctl start ondemand_exporter
 ```
 
+## Build from source
+
+To produce the `ondemand_exporter` binary:
+
+```
+make build
+```
+
+or
+
+```
+go get github.com/OSC/ondemand_exporter
+```
+
 ## Install Grafana dashboard
 
-TODO
+See `graphs` directory for Grafana graphs
 
