@@ -32,4 +32,3 @@ port: 443`
 		t.Errorf("Expected %s, got %s", expected, ret)
 	}
 }
-

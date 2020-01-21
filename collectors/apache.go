@@ -6,7 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strings"
-    "time"
+	"time"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/prometheus/client_golang/prometheus"
@@ -135,7 +135,7 @@ func NewApacheCollector() *ApacheCollector {
 
 func (c *ApacheCollector) collect(apacheStatus string, fqdn string, ch chan<- prometheus.Metric) error {
 	log.Info("Collecting apache metrics")
-    collectTime := time.Now()
+	collectTime := time.Now()
 	apacheMetrics, err := getApacheMetrics(apacheStatus, fqdn)
 	if err != nil {
 		return err
@@ -144,7 +144,6 @@ func (c *ApacheCollector) collect(apacheStatus string, fqdn string, ch chan<- pr
 	ch <- prometheus.MustNewConstMetric(c.UniqueWebsocketClients, prometheus.GaugeValue, float64(apacheMetrics.UniqueWebsocketClients))
 	ch <- prometheus.MustNewConstMetric(c.ClientConnections, prometheus.GaugeValue, float64(apacheMetrics.ClientConnections))
 	ch <- prometheus.MustNewConstMetric(c.UniqueClientConnections, prometheus.GaugeValue, float64(apacheMetrics.UniqueClientConnections))
-    ch <- prometheus.MustNewConstMetric(collectDuration, prometheus.GaugeValue, time.Since(collectTime).Seconds(), "apache")
+	ch <- prometheus.MustNewConstMetric(collectDuration, prometheus.GaugeValue, time.Since(collectTime).Seconds(), "apache")
 	return nil
 }
-

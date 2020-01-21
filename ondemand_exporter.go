@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"os"
 
-    "github.com/OSC/ondemand_exporter/collectors"
+	"github.com/OSC/ondemand_exporter/collectors"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/log"
@@ -15,11 +15,11 @@ import (
 )
 
 var (
-	listenAddr    = kingpin.Flag("listen", "Address on which to expose metrics.").Default(":9301").String()
-	apacheStatusURL  = kingpin.Flag("apache-status", "URL to collect Apache status from").Default("").String()
-	oodPortalPath = "/etc/ood/config/ood_portal.yml"
-    osHostname    = os.Hostname
-	fqdn          = "localhost"
+	listenAddr      = kingpin.Flag("listen", "Address on which to expose metrics.").Default(":9301").String()
+	apacheStatusURL = kingpin.Flag("apache-status", "URL to collect Apache status from").Default("").String()
+	oodPortalPath   = "/etc/ood/config/ood_portal.yml"
+	osHostname      = os.Hostname
+	fqdn            = "localhost"
 )
 
 type oodPortal struct {
@@ -75,18 +75,18 @@ func getApacheStatusURL() string {
 }
 
 func metricsHandler() http.HandlerFunc {
-    return func(w http.ResponseWriter, r *http.Request) {
-	    collector := collectors.NewCollector()
-	    collector.Fqdn = getFQDN()
-	    if *apacheStatusURL == "" {
-		    collector.ApacheStatus = getApacheStatusURL()
-	    } else {
-            collector.ApacheStatus = *apacheStatusURL
-        }
+	return func(w http.ResponseWriter, r *http.Request) {
+		collector := collectors.NewCollector()
+		collector.Fqdn = getFQDN()
+		if *apacheStatusURL == "" {
+			collector.ApacheStatus = getApacheStatusURL()
+		} else {
+			collector.ApacheStatus = *apacheStatusURL
+		}
 
-        registry := prometheus.NewRegistry()
-	    registry.MustRegister(collector)
-    	registry.MustRegister(version.NewCollector("ondemand_exporter"))
+		registry := prometheus.NewRegistry()
+		registry.MustRegister(collector)
+		registry.MustRegister(version.NewCollector("ondemand_exporter"))
 
 		gatherers := prometheus.Gatherers{
 			prometheus.DefaultGatherer,

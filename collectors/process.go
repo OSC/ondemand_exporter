@@ -1,9 +1,9 @@
 package collectors
 
 import (
-    "runtime"
+	"runtime"
 	"strings"
-    "time"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
@@ -11,11 +11,11 @@ import (
 )
 
 type ProcessCollector struct {
-	RackApps                *prometheus.Desc
-	NodeApps                *prometheus.Desc
-	PunCpuPercent           *prometheus.Desc
-	PunMemory               *prometheus.Desc
-	PunMemoryPercent        *prometheus.Desc
+	RackApps         *prometheus.Desc
+	NodeApps         *prometheus.Desc
+	PunCpuPercent    *prometheus.Desc
+	PunMemory        *prometheus.Desc
+	PunMemoryPercent *prometheus.Desc
 }
 
 type ProcessMetrics struct {
@@ -85,17 +85,17 @@ func getProcessMetrics(puns []string) (ProcessMetrics, error) {
 
 func NewProcessCollector() *ProcessCollector {
 	return &ProcessCollector{
-		RackApps:                prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "rack_apps"), "Number of running Rack apps", nil, nil),
-		NodeApps:                prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "node_apps"), "Number of running NodeJS apps", nil, nil),
-		PunCpuPercent:           prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "pun_cpu_percent"), "Percent CPU of all PUNs", nil, nil),
-		PunMemory:               prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "pun_memory"), "Memory used by all PUNs", []string{"type"}, nil),
-		PunMemoryPercent:        prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "pun_memory_percent"), "Percent memory of all PUNs", nil, nil),
+		RackApps:         prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "rack_apps"), "Number of running Rack apps", nil, nil),
+		NodeApps:         prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "node_apps"), "Number of running NodeJS apps", nil, nil),
+		PunCpuPercent:    prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "pun_cpu_percent"), "Percent CPU of all PUNs", nil, nil),
+		PunMemory:        prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "pun_memory"), "Memory used by all PUNs", []string{"type"}, nil),
+		PunMemoryPercent: prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "pun_memory_percent"), "Percent memory of all PUNs", nil, nil),
 	}
 }
 
 func (c *ProcessCollector) collect(puns []string, ch chan<- prometheus.Metric) error {
 	log.Info("Collecting process metrics")
-    collectTime := time.Now()
+	collectTime := time.Now()
 	processMetrics, err := getProcessMetrics(puns)
 	if err != nil {
 		return err
@@ -106,6 +106,6 @@ func (c *ProcessCollector) collect(puns []string, ch chan<- prometheus.Metric) e
 	ch <- prometheus.MustNewConstMetric(c.PunMemory, prometheus.GaugeValue, float64(processMetrics.PunMemoryRSS), "rss")
 	ch <- prometheus.MustNewConstMetric(c.PunMemory, prometheus.GaugeValue, float64(processMetrics.PunMemoryVMS), "vms")
 	ch <- prometheus.MustNewConstMetric(c.PunMemoryPercent, prometheus.GaugeValue, float64(processMetrics.PunMemoryPercent))
-    ch <- prometheus.MustNewConstMetric(collectDuration, prometheus.GaugeValue, time.Since(collectTime).Seconds(), "process")
+	ch <- prometheus.MustNewConstMetric(collectDuration, prometheus.GaugeValue, time.Since(collectTime).Seconds(), "process")
 	return nil
 }
