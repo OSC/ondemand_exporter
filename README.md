@@ -95,6 +95,8 @@ cp /tmp/ondemand_exporter /usr/local/bin/ondemand_exporter
 
 Add sudo rule, see [sudo section](#sudo)
 
+Enable Apache mod_status, see [Apache mod_status](#apache-mod_status)
+
 Add systemd unit file and start service
 
 ```
