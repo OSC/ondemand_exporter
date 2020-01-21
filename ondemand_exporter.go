@@ -362,30 +362,30 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 }
 
 func metricsHandler() http.HandlerFunc {
-    return func(w http.ResponseWriter, r *http.Request) {
-        registry := prometheus.NewRegistry()
+	return func(w http.ResponseWriter, r *http.Request) {
+		registry := prometheus.NewRegistry()
 
-    	fqdn = getFQDN()
+		fqdn = getFQDN()
 
-    	exporter := NewExporter()
-        exporter.fqdn = fqdn
-    	if *apacheStatus == "" {
-    		exporter.apacheStatus = getApacheStatusURL()
-    	} else {
-    		exporter.apacheStatus = *apacheStatus
-    	}
+		exporter := NewExporter()
+		exporter.fqdn = fqdn
+		if *apacheStatus == "" {
+			exporter.apacheStatus = getApacheStatusURL()
+		} else {
+			exporter.apacheStatus = *apacheStatus
+		}
 
-    	registry.MustRegister(exporter)
-    	registry.MustRegister(version.NewCollector("ondemand_exporter"))
+		registry.MustRegister(exporter)
+		registry.MustRegister(version.NewCollector("ondemand_exporter"))
 
-        gatherers := prometheus.Gatherers{
-            prometheus.DefaultGatherer,
-            registry,
-        }
+		gatherers := prometheus.Gatherers{
+			prometheus.DefaultGatherer,
+			registry,
+		}
 
-        h := promhttp.HandlerFor(gatherers, promhttp.HandlerOpts{})
-        h.ServeHTTP(w, r)
-    }
+		h := promhttp.HandlerFor(gatherers, promhttp.HandlerOpts{})
+		h.ServeHTTP(w, r)
+	}
 }
 
 func main() {
