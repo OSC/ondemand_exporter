@@ -133,6 +133,7 @@ func main() {
 
 	http.Handle(metricsEndpoint, metricsHandler())
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		//nolint:errcheck
 		w.Write([]byte(`<html>
              <head><title>OnDemand Exporter</title></head>
              <body>

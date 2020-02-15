@@ -147,5 +147,4 @@ func (c *Collector) Collect(ch chan<- prometheus.Metric) {
 		c.collectFailures.Inc()
 	}
 	c.collectFailures.Collect(ch)
-	return
 }

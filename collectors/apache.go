@@ -98,7 +98,6 @@ func getApacheMetrics(apacheStatus string, fqdn string) (ApacheMetrics, error) {
 		return true
 	})
 	var websocket_connections, client_connections int
-	var clients []string
 	var unique_client_connections []string
 	var unique_websocket_clients []string
 	localClients := []string{fqdn, "localhost", "127.0.0.1"}
@@ -120,7 +119,6 @@ func getApacheMetrics(apacheStatus string, fqdn string) (ApacheMetrics, error) {
 			log.Debugf("Skip request: %s", request)
 			continue
 		}
-		clients = append(clients, client)
 		if strings.Contains(request, "/node/") || strings.Contains(request, "/rnode/") || strings.Contains(request, "websockify") {
 			websocket_connections++
 			if contains := sliceContains(unique_websocket_clients, client); !contains {

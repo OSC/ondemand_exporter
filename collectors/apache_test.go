@@ -36,8 +36,11 @@ func TestGetApacheMetrics(t *testing.T) {
 	dir := filepath.Dir(filename)
 	fixture := filepath.Join(dir, "fixtures/status")
 	fixtureData, err := ioutil.ReadFile(fixture)
+	if err != nil {
+		t.Fatalf("Error loading fixture data: %s", err.Error())
+	}
 	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-		rw.Write(fixtureData)
+		_, _ = rw.Write(fixtureData)
 	}))
 	defer server.Close()
 	m, err := getApacheMetrics(server.URL, "ood.example.com")
@@ -64,8 +67,11 @@ func TestGetApacheMetricsThreadMPM(t *testing.T) {
 	dir := filepath.Dir(filename)
 	fixture := filepath.Join(dir, "fixtures/status2")
 	fixtureData, err := ioutil.ReadFile(fixture)
+	if err != nil {
+		t.Fatalf("Error loading fixture data: %s", err.Error())
+	}
 	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-		rw.Write(fixtureData)
+		_, _ = rw.Write(fixtureData)
 	}))
 	defer server.Close()
 	m, err := getApacheMetrics(server.URL, "ood.example.com")
