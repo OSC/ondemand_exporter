@@ -1,22 +1,7 @@
-export PATH := /usr/local/go/bin:$(PATH)
-GOBIN := $(shell go env GOPATH)/bin
-PROMU := $(GOBIN)/promu
-PREFIX ?= $(shell pwd)
-pkgs   = $(shell go list ./... | grep -v /vendor/)
+# Needs to be defined before including Makefile.common to auto-generate targets
+DOCKER_ARCHS ?= amd64 armv7 arm64 ppc64le s390x
+DOCKER_REPO	 ?= ohiosupercomputer
 
-all: format build test
+include Makefile.common
 
-format:
-	go fmt $(pkgs)
-
-test:
-	go test -v -short $(pkgs)
-
-build: promu
-	if [ -f $(GOBIN)/linux_ppc64le/promu ] ; then cp -a $(GOBIN)/linux_ppc64le/promu $(GOBIN)/promu ; fi
-	$(PROMU) build --verbose --prefix $(PREFIX)
-
-promu:
-	go get -u github.com/prometheus/promu
-
-.PHONY: promu
+DOCKER_IMAGE_NAME ?= ondemand_exporter

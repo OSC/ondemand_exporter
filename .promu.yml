@@ -20,6 +20,13 @@ tarball:
         - LICENSE
         - CHANGELOG.md
 crossbuild:
-  platforms:
-    - linux/amd64
-#    - linux/ppc64le
+    platforms:
+        - linux/amd64
+        - linux/386
+        - linux/arm
+        - linux/arm64
+        - linux/mips
+        - linux/mipsle
+        - linux/mips64
+        - linux/mips64le
+        - linux/ppc64le
