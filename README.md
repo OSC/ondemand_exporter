@@ -3,6 +3,7 @@
 [![Build Status](https://circleci.com/gh/OSC/ondemand_exporter/tree/master.svg?style=shield)](https://circleci.com/gh/OSC/ondemand_exporter)
 [![GitHub release](https://img.shields.io/github/v/release/OSC/ondemand_exporter?include_prereleases&sort=semver)](https://github.com/OSC/ondemand_exporter/releases/latest)
 ![GitHub All Releases](https://img.shields.io/github/downloads/OSC/ondemand_exporter/total)
+[![codecov](https://codecov.io/gh/OSC/ondemand_exporter/branch/master/graph/badge.svg)](https://codecov.io/gh/OSC/ondemand_exporter)
 
 The OnDemand exporter collects metrics specific to Open OnDemand.
 
