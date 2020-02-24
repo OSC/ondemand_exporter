@@ -116,7 +116,7 @@ func NewProcessCollector() *ProcessCollector {
 }
 
 func (c *ProcessCollector) collect(puns []string, ch chan<- prometheus.Metric) error {
-	log.Info("Collecting process metrics")
+	log.Debug("Collecting process metrics")
 	collectTime := time.Now()
 	processMetrics, err := getProcessMetrics(puns)
 	if err != nil {
