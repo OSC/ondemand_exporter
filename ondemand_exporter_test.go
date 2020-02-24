@@ -23,10 +23,9 @@
 package main
 
 import (
+	"io/ioutil"
 	"os"
 	"testing"
-
-	"github.com/Flaque/filet"
 )
 
 func TestGetApacheStatusURL_Default(t *testing.T) {
@@ -41,12 +40,18 @@ func TestGetApacheStatusURL_Default(t *testing.T) {
 }
 
 func TestGetApacheStatusURL_read_ood_portal(t *testing.T) {
-	defer filet.CleanUp(t)
+	tmpDir, err := ioutil.TempDir(os.TempDir(), "tmp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
 	oodPortalYAML := `
 servername: ood.example.com
 port: 443`
-	filet.File(t, "/tmp/ood_portal.yml", oodPortalYAML)
-	oodPortalPath = "/tmp/ood_portal.yml"
+	oodPortalPath = tmpDir + "/ood_porta.yml"
+	if err := ioutil.WriteFile(oodPortalPath, []byte(oodPortalYAML), 0644); err != nil {
+		t.Fatal(err)
+	}
 	fqdn = "foo.example.com"
 	ret := getApacheStatusURL()
 	expected := "https://ood.example.com/server-status"

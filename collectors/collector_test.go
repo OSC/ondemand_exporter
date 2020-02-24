@@ -24,10 +24,18 @@ package collectors
 
 import (
 	"fmt"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/testutil"
+	"io/ioutil"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"reflect"
+	"runtime"
 	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -69,4 +77,74 @@ bar`
 	if !reflect.DeepEqual(puns, expPuns) {
 		t.Errorf("Expected %v, got %v", expPuns, puns)
 	}
+}
+
+func TestCollector(t *testing.T) {
+	execCommand = fakeExecCommand
+	mockedStdout = `
+foo
+bar`
+	defer func() { execCommand = exec.Command }()
+	_, filename, _, _ := runtime.Caller(0)
+	dir := filepath.Dir(filename)
+	fixture := filepath.Join(dir, "fixtures/status")
+	fixtureData, err := ioutil.ReadFile(fixture)
+	if err != nil {
+		t.Fatalf("Error loading fixture data: %s", err.Error())
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		_, _ = rw.Write(fixtureData)
+	}))
+	defer server.Close()
+	expected := `
+		# HELP ondemand_active_puns Active PUNs
+		# TYPE ondemand_active_puns gauge
+		ondemand_active_puns 2
+		# HELP ondemand_client_connections Number of client connections
+		# TYPE ondemand_client_connections gauge
+		ondemand_client_connections 63
+		# HELP ondemand_node_apps Number of running NodeJS apps
+		# TYPE ondemand_node_apps gauge
+		ondemand_node_apps 0
+		# HELP ondemand_pun_cpu_percent Percent CPU of all PUNs
+		# TYPE ondemand_pun_cpu_percent gauge
+		ondemand_pun_cpu_percent 0
+		# HELP ondemand_pun_memory Memory used by all PUNs
+		# TYPE ondemand_pun_memory gauge
+		ondemand_pun_memory{type="rss"} 0
+		ondemand_pun_memory{type="vms"} 0
+		# HELP ondemand_pun_memory_percent Percent memory of all PUNs
+		# TYPE ondemand_pun_memory_percent gauge
+		ondemand_pun_memory_percent 0
+		# HELP ondemand_rack_apps Number of running Rack apps
+		# TYPE ondemand_rack_apps gauge
+		ondemand_rack_apps 0
+		# HELP ondemand_unique_client_connections Unique client connections
+		# TYPE ondemand_unique_client_connections gauge
+		ondemand_unique_client_connections 38
+		# HELP ondemand_unique_websocket_clients Unique websocket connections
+		# TYPE ondemand_unique_websocket_clients gauge
+		ondemand_unique_websocket_clients 3
+		# HELP ondemand_websocket_connections Number of websocket connections
+		# TYPE ondemand_websocket_connections gauge
+		ondemand_websocket_connections 5
+	`
+	collector := NewCollector()
+	collector.ApacheStatus = server.URL
+	gatherers := setupGatherer(collector)
+	if val := testutil.CollectAndCount(collector); val != 16 {
+		t.Errorf("Unexpected collection count %d, expected 16", val)
+	}
+	if err := testutil.GatherAndCompare(gatherers, strings.NewReader(expected), "ondemand_active_puns",
+		"ondemand_client_connections", "ondemand_unique_client_connections", "ondemand_unique_websocket_clients", "ondemand_websocket_connections",
+		"ondemand_node_apps", "ondemand_rack_apps", "ondemand_pun_cpu_percent", "ondemand_pun_memory", "ondemand_pun_memory_percent"); err != nil {
+		t.Errorf("unexpected collecting result:\n%s", err)
+	}
+}
+
+func setupGatherer(collector *Collector) prometheus.Gatherer {
+	registry := prometheus.NewRegistry()
+	registry.MustRegister(collector)
+	gatherers := prometheus.Gatherers{registry}
+	return gatherers
 }
