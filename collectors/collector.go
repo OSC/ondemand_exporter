@@ -94,7 +94,7 @@ func NewCollector() *Collector {
 }
 
 func (c *Collector) collect(ch chan<- prometheus.Metric) error {
-	log.Info("Collecting metrics")
+	log.Debug("Collecting metrics")
 
 	collectTime := time.Now()
 	puns, err := getActivePuns()

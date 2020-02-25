@@ -54,7 +54,6 @@ type connection map[string]interface{}
 
 func getApacheMetrics(apacheStatus string, fqdn string) (ApacheMetrics, error) {
 	var metrics ApacheMetrics
-	log.Infof("GET: %s", apacheStatus)
 	resp, err := http.Get(apacheStatus)
 	if err != nil {
 		return metrics, err
@@ -154,7 +153,7 @@ func NewApacheCollector() *ApacheCollector {
 }
 
 func (c *ApacheCollector) collect(apacheStatus string, fqdn string, ch chan<- prometheus.Metric) error {
-	log.Info("Collecting apache metrics")
+	log.Debug("Collecting apache metrics")
 	collectTime := time.Now()
 	apacheMetrics, err := getApacheMetrics(apacheStatus, fqdn)
 	if err != nil {
