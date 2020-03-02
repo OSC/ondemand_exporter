@@ -23,6 +23,7 @@
 package collectors
 
 import (
+	"context"
 	"os/exec"
 	"strings"
 	"sync"
@@ -30,6 +31,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
+	"gopkg.in/alecthomas/kingpin.v2"
 )
 
 const (
@@ -37,8 +39,14 @@ const (
 )
 
 var (
-	execCommand     = exec.Command
-	collectDuration = prometheus.NewDesc(prometheus.BuildFQName(namespace, "exporter", "collector_duration_seconds"), "Collector time duration", []string{"collector"}, nil)
+	punsTimeout     = kingpin.Flag("collector.puns.timeout", "Timeout for collecting PUNs").Default("10").Int()
+	execCommand     = exec.CommandContext
+	collectDuration = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "exporter", "collector_duration_seconds"),
+		"Collector time duration", []string{"collector"}, nil)
+	collecTimeout = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "exporter", "collect_timeout"),
+		"Indicates the collector timed out", []string{"collector"}, nil)
 )
 
 type Collector struct {
@@ -59,9 +67,9 @@ func sliceContains(slice []string, str string) bool {
 	return false
 }
 
-func getActivePuns() ([]string, error) {
+func getActivePuns(ctx context.Context) ([]string, error) {
 	var puns []string
-	out, err := execCommand("sudo", "/opt/ood/nginx_stage/sbin/nginx_stage", "nginx_list").Output()
+	out, err := execCommand(ctx, "sudo", "/opt/ood/nginx_stage/sbin/nginx_stage", "nginx_list").Output()
 	if err != nil {
 		return nil, err
 	}
@@ -95,9 +103,16 @@ func NewCollector() *Collector {
 
 func (c *Collector) collect(ch chan<- prometheus.Metric) error {
 	log.Debug("Collecting metrics")
-
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(*punsTimeout)*time.Second)
+	defer cancel()
 	collectTime := time.Now()
-	puns, err := getActivePuns()
+	puns, err := getActivePuns(ctx)
+	if ctx.Err() == context.DeadlineExceeded {
+		ch <- prometheus.MustNewConstMetric(collecTimeout, prometheus.GaugeValue, 1, "puns")
+		log.Error("Timeout collecting PUNs")
+		return nil
+	}
+	ch <- prometheus.MustNewConstMetric(collecTimeout, prometheus.GaugeValue, 0, "puns")
 	if err != nil {
 		return err
 	}
