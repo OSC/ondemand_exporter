@@ -143,8 +143,8 @@ bar`
 	collector := NewCollector()
 	collector.ApacheStatus = server.URL
 	gatherers := setupGatherer(collector)
-	if val := testutil.CollectAndCount(collector); val != 19 {
-		t.Errorf("Unexpected collection count %d, expected 19", val)
+	if val := testutil.CollectAndCount(collector); val != 20 {
+		t.Errorf("Unexpected collection count %d, expected 20", val)
 	}
 	if err := testutil.GatherAndCompare(gatherers, strings.NewReader(expected), "ondemand_active_puns",
 		"ondemand_client_connections", "ondemand_unique_client_connections", "ondemand_unique_websocket_clients", "ondemand_websocket_connections",

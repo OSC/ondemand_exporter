@@ -42,20 +42,21 @@ var (
 	punsTimeout     = kingpin.Flag("collector.puns.timeout", "Timeout for collecting PUNs").Default("10").Int()
 	execCommand     = exec.CommandContext
 	collectDuration = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, "exporter", "collector_duration_seconds"),
+		prometheus.BuildFQName(namespace, "exporter", "collect_duration_seconds"),
 		"Collector time duration", []string{"collector"}, nil)
 	collecTimeout = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, "exporter", "collect_timeout"),
 		"Indicates the collector timed out", []string{"collector"}, nil)
+	collecError = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "exporter", "collect_error"),
+		"Indicates the collector had an error", []string{"collector"}, nil)
 )
 
 type Collector struct {
 	sync.Mutex
-	ApacheStatus    string
-	Fqdn            string
-	ActivePuns      *prometheus.Desc
-	collectFailures prometheus.Counter
-	error           prometheus.Gauge
+	ApacheStatus string
+	Fqdn         string
+	ActivePuns   *prometheus.Desc
 }
 
 func sliceContains(slice []string, str string) bool {
@@ -86,18 +87,6 @@ func getActivePuns(ctx context.Context) ([]string, error) {
 func NewCollector() *Collector {
 	return &Collector{
 		ActivePuns: prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "active_puns"), "Active PUNs", nil, nil),
-		collectFailures: prometheus.NewCounter(prometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: "exporter",
-			Name:      "collect_failures_total",
-			Help:      "Number of errors while collecting metrics.",
-		}),
-		error: prometheus.NewGauge(prometheus.GaugeOpts{
-			Namespace: namespace,
-			Subsystem: "exporter",
-			Name:      "error",
-			Help:      "Indicates if exporter has an error, 0=no errors, 1=errors",
-		}),
 	}
 }
 
@@ -114,12 +103,13 @@ func (c *Collector) collect(ch chan<- prometheus.Metric) error {
 	}
 	ch <- prometheus.MustNewConstMetric(collecTimeout, prometheus.GaugeValue, 0, "puns")
 	if err != nil {
-		return err
+		ch <- prometheus.MustNewConstMetric(collecError, prometheus.GaugeValue, 1, "puns")
+		log.Error(err)
+		return nil
 	}
+	ch <- prometheus.MustNewConstMetric(collecError, prometheus.GaugeValue, 0, "puns")
 	ch <- prometheus.MustNewConstMetric(c.ActivePuns, prometheus.GaugeValue, float64(len(puns)))
 	ch <- prometheus.MustNewConstMetric(collectDuration, prometheus.GaugeValue, time.Since(collectTime).Seconds(), "puns")
-	c.error.Set(0)
-	c.collectFailures.Add(0)
 
 	wg := &sync.WaitGroup{}
 	wg.Add(2)
@@ -129,7 +119,9 @@ func (c *Collector) collect(ch chan<- prometheus.Metric) error {
 		err := p.collect(puns, ch)
 		if err != nil {
 			log.Errorf("Error collecting process information: %s", err.Error())
-			c.error.Set(1)
+			ch <- prometheus.MustNewConstMetric(collecError, prometheus.GaugeValue, 1, "process")
+		} else {
+			ch <- prometheus.MustNewConstMetric(collecError, prometheus.GaugeValue, 0, "process")
 		}
 		wg.Done()
 	}(puns)
@@ -139,7 +131,9 @@ func (c *Collector) collect(ch chan<- prometheus.Metric) error {
 		err := a.collect(c.ApacheStatus, c.Fqdn, ch)
 		if err != nil {
 			log.Errorf("Error collecting apache information: %s", err.Error())
-			c.error.Set(1)
+			ch <- prometheus.MustNewConstMetric(collecError, prometheus.GaugeValue, 1, "apache")
+		} else {
+			ch <- prometheus.MustNewConstMetric(collecError, prometheus.GaugeValue, 0, "apache")
 		}
 		wg.Done()
 	}()
@@ -149,17 +143,12 @@ func (c *Collector) collect(ch chan<- prometheus.Metric) error {
 
 func (c *Collector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.ActivePuns
-	c.error.Describe(ch)
-	c.collectFailures.Describe(ch)
 }
 
 func (c *Collector) Collect(ch chan<- prometheus.Metric) {
 	c.Lock() // To protect metrics from concurrent collects.
 	defer c.Unlock()
-	c.error.Collect(ch)
 	if err := c.collect(ch); err != nil {
 		log.Errorf("Error scraping ondemand: %s", err)
-		c.collectFailures.Inc()
 	}
-	c.collectFailures.Collect(ch)
 }
