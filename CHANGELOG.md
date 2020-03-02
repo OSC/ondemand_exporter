@@ -1,3 +1,10 @@
+## 0.2.0 / 2020-03-02
+
+### Changes
+
+* Support timeouts for collectors
+* Improve metrics for collector errors
+
 ## 0.1.0 / 2020-02-25
 
 ### Changes
