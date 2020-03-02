@@ -26,6 +26,7 @@ Exporter metrics specific to status of the exporter
 
 * `ondemand_exporter_collect_failures_total` - Counter of collection failures since exporter startup
 * `ondemand_exporter_collector_duration_seconds{collector="apache|process|puns"}` - Duration of each collector
+* `ondemand_exporter_collect_timeout{collector="apache|process|puns"}` - Indicates a collector timed out
 * `ondemand_exporter_error` - Status of the exporter, 0=no errors and 1=errors
 
 ## Flags
