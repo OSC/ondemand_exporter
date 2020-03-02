@@ -30,6 +30,11 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
 	"github.com/shirou/gopsutil/process"
+	"gopkg.in/alecthomas/kingpin.v2"
+)
+
+var (
+	processTimeout = kingpin.Flag("collector.process.timeout", "Timeout for process collection").Default("10").Int()
 )
 
 type ProcessCollector struct {
@@ -118,7 +123,28 @@ func NewProcessCollector() *ProcessCollector {
 func (c *ProcessCollector) collect(puns []string, ch chan<- prometheus.Metric) error {
 	log.Debug("Collecting process metrics")
 	collectTime := time.Now()
-	processMetrics, err := getProcessMetrics(puns)
+
+	c1 := make(chan int, 1)
+	timeout := false
+	var processMetrics ProcessMetrics
+	var err error
+	go func() {
+		processMetrics, err = getProcessMetrics(puns)
+		if !timeout {
+			c1 <- 1
+		}
+	}()
+	select {
+	case <-c1:
+	case <-time.After(time.Duration(*processTimeout) * time.Second):
+		timeout = true
+		close(c1)
+		ch <- prometheus.MustNewConstMetric(collecTimeout, prometheus.GaugeValue, 1, "process")
+		log.Error("Timeout collecting process information")
+		return nil
+	}
+	close(c1)
+	ch <- prometheus.MustNewConstMetric(collecTimeout, prometheus.GaugeValue, 0, "process")
 	if err != nil {
 		return err
 	}
