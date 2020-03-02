@@ -23,9 +23,11 @@
 package collectors
 
 import (
+	"context"
 	"fmt"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
+	"gopkg.in/alecthomas/kingpin.v2"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -37,17 +39,19 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 var (
 	mockedExitStatus = 0
 	mockedStdout     string
+	ctx, _           = context.WithTimeout(context.Background(), 5*time.Second)
 )
 
-func fakeExecCommand(command string, args ...string) *exec.Cmd {
+func fakeExecCommand(ctx context.Context, command string, args ...string) *exec.Cmd {
 	cs := []string{"-test.run=TestExecCommandHelper", "--", command}
 	cs = append(cs, args...)
-	cmd := exec.Command(os.Args[0], cs...)
+	cmd := exec.CommandContext(ctx, os.Args[0], cs...)
 	es := strconv.Itoa(mockedExitStatus)
 	cmd.Env = []string{"GO_WANT_HELPER_PROCESS=1",
 		"STDOUT=" + mockedStdout,
@@ -67,13 +71,20 @@ func TestExecCommandHelper(t *testing.T) {
 }
 
 func TestGetActivePuns(t *testing.T) {
+	if _, err := kingpin.CommandLine.Parse([]string{}); err != nil {
+		t.Fatal(err)
+	}
 	execCommand = fakeExecCommand
 	mockedStdout = `
 foo
 bar`
 	expPuns := []string{"foo", "bar"}
-	defer func() { execCommand = exec.Command }()
-	puns, _ := getActivePuns()
+	defer func() { execCommand = exec.CommandContext }()
+	puns, err := getActivePuns(ctx)
+	if err != nil {
+		t.Errorf("Unexpected error: %s", err.Error())
+		return
+	}
 	if !reflect.DeepEqual(puns, expPuns) {
 		t.Errorf("Expected %v, got %v", expPuns, puns)
 	}
@@ -84,7 +95,7 @@ func TestCollector(t *testing.T) {
 	mockedStdout = `
 foo
 bar`
-	defer func() { execCommand = exec.Command }()
+	defer func() { execCommand = exec.CommandContext }()
 	_, filename, _, _ := runtime.Caller(0)
 	dir := filepath.Dir(filename)
 	fixture := filepath.Join(dir, "fixtures/status")
@@ -132,8 +143,8 @@ bar`
 	collector := NewCollector()
 	collector.ApacheStatus = server.URL
 	gatherers := setupGatherer(collector)
-	if val := testutil.CollectAndCount(collector); val != 16 {
-		t.Errorf("Unexpected collection count %d, expected 16", val)
+	if val := testutil.CollectAndCount(collector); val != 19 {
+		t.Errorf("Unexpected collection count %d, expected 19", val)
 	}
 	if err := testutil.GatherAndCompare(gatherers, strings.NewReader(expected), "ondemand_active_puns",
 		"ondemand_client_connections", "ondemand_unique_client_connections", "ondemand_unique_websocket_clients", "ondemand_websocket_connections",
