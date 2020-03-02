@@ -43,7 +43,7 @@ func TestGetApacheMetrics(t *testing.T) {
 		_, _ = rw.Write(fixtureData)
 	}))
 	defer server.Close()
-	m, err := getApacheMetrics(server.URL, "ood.example.com")
+	m, err := getApacheMetrics(server.URL, "ood.example.com", ctx)
 	if err != nil {
 		t.Errorf("Unexpected error: %s", err.Error())
 		return
@@ -74,7 +74,7 @@ func TestGetApacheMetricsThreadMPM(t *testing.T) {
 		_, _ = rw.Write(fixtureData)
 	}))
 	defer server.Close()
-	m, err := getApacheMetrics(server.URL, "ood.example.com")
+	m, err := getApacheMetrics(server.URL, "ood.example.com", ctx)
 	if err != nil {
 		t.Errorf("Unexpected error: %s", err.Error())
 		return

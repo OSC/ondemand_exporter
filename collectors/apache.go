@@ -23,6 +23,7 @@
 package collectors
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"io/ioutil"
@@ -33,6 +34,11 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
+	"gopkg.in/alecthomas/kingpin.v2"
+)
+
+var (
+	apacheTimeout = kingpin.Flag("collector.apache.timeout", "Timeout for collecting Apache metrics").Default("10").Int()
 )
 
 type ApacheCollector struct {
@@ -52,9 +58,13 @@ type ApacheMetrics struct {
 
 type connection map[string]interface{}
 
-func getApacheMetrics(apacheStatus string, fqdn string) (ApacheMetrics, error) {
+func getApacheMetrics(apacheStatus string, fqdn string, ctx context.Context) (ApacheMetrics, error) {
 	var metrics ApacheMetrics
-	resp, err := http.Get(apacheStatus)
+	req, err := http.NewRequest("GET", apacheStatus, nil)
+	if err != nil {
+		return metrics, err
+	}
+	resp, err := http.DefaultClient.Do(req.WithContext(ctx))
 	if err != nil {
 		return metrics, err
 	}
@@ -155,7 +165,15 @@ func NewApacheCollector() *ApacheCollector {
 func (c *ApacheCollector) collect(apacheStatus string, fqdn string, ch chan<- prometheus.Metric) error {
 	log.Debug("Collecting apache metrics")
 	collectTime := time.Now()
-	apacheMetrics, err := getApacheMetrics(apacheStatus, fqdn)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(*apacheTimeout)*time.Second)
+	defer cancel()
+	apacheMetrics, err := getApacheMetrics(apacheStatus, fqdn, ctx)
+	if ctx.Err() == context.DeadlineExceeded {
+		log.Error("Timeout requesting Apache metrics")
+		ch <- prometheus.MustNewConstMetric(collecTimeout, prometheus.GaugeValue, 1, "apache")
+		return nil
+	}
+	ch <- prometheus.MustNewConstMetric(collecTimeout, prometheus.GaugeValue, 0, "apache")
 	if err != nil {
 		return err
 	}
