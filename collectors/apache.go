@@ -24,7 +24,6 @@ package collectors
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -42,7 +41,6 @@ var (
 )
 
 type ApacheCollector struct {
-	httpClient              *http.Client
 	WebsocketConnections    *prometheus.Desc
 	ClientConnections       *prometheus.Desc
 	UniqueClientConnections *prometheus.Desc
@@ -154,11 +152,6 @@ func NewApacheCollector() *ApacheCollector {
 		UniqueWebsocketClients:  prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "unique_websocket_clients"), "Unique websocket connections", nil, nil),
 		ClientConnections:       prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "client_connections"), "Number of client connections", nil, nil),
 		UniqueClientConnections: prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "unique_client_connections"), "Unique client connections", nil, nil),
-		httpClient: &http.Client{
-			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-			},
-		},
 	}
 }
 
