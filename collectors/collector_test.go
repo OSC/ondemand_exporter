@@ -25,9 +25,6 @@ package collectors
 import (
 	"context"
 	"fmt"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/testutil"
-	"gopkg.in/alecthomas/kingpin.v2"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -40,6 +37,11 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/go-kit/kit/log"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/testutil"
+	"gopkg.in/alecthomas/kingpin.v2"
 )
 
 var (
@@ -140,7 +142,7 @@ bar`
 		# TYPE ondemand_websocket_connections gauge
 		ondemand_websocket_connections 5
 	`
-	collector := NewCollector()
+	collector := NewCollector(log.NewNopLogger())
 	collector.ApacheStatus = server.URL
 	gatherers := setupGatherer(collector)
 	if val := testutil.CollectAndCount(collector); val != 20 {

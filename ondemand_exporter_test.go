@@ -26,13 +26,15 @@ import (
 	"io/ioutil"
 	"os"
 	"testing"
+
+	"github.com/go-kit/kit/log"
 )
 
 func TestGetApacheStatusURL_Default(t *testing.T) {
 	defer func() { osHostname = os.Hostname }()
 	fqdn = "foo.example.com"
 	osHostname = func() (string, error) { return "foo.example.com", nil }
-	ret := getApacheStatusURL()
+	ret := getApacheStatusURL(log.NewNopLogger())
 	expected := "http://foo.example.com/server-status"
 	if ret != expected {
 		t.Errorf("Expected %s, got %s", expected, ret)
@@ -53,7 +55,7 @@ port: 443`
 		t.Fatal(err)
 	}
 	fqdn = "foo.example.com"
-	ret := getApacheStatusURL()
+	ret := getApacheStatusURL(log.NewNopLogger())
 	expected := "https://ood.example.com/server-status"
 	if ret != expected {
 		t.Errorf("Expected %s, got %s", expected, ret)

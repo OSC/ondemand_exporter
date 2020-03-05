@@ -31,8 +31,9 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/common/log"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 
@@ -45,6 +46,7 @@ type ApacheCollector struct {
 	ClientConnections       *prometheus.Desc
 	UniqueClientConnections *prometheus.Desc
 	UniqueWebsocketClients  *prometheus.Desc
+	logger                  log.Logger
 }
 
 type ApacheMetrics struct {
@@ -56,7 +58,7 @@ type ApacheMetrics struct {
 
 type connection map[string]interface{}
 
-func getApacheMetrics(apacheStatus string, fqdn string, ctx context.Context) (ApacheMetrics, error) {
+func getApacheMetrics(apacheStatus string, fqdn string, ctx context.Context, logger log.Logger) (ApacheMetrics, error) {
 	var metrics ApacheMetrics
 	req, err := http.NewRequest("GET", apacheStatus, nil)
 	if err != nil {
@@ -123,7 +125,7 @@ func getApacheMetrics(apacheStatus string, fqdn string, ctx context.Context) (Ap
 			!strings.Contains(request, "/pun/") &&
 			!strings.Contains(request, "/nginx/") &&
 			!strings.Contains(request, "/oidc") {
-			log.Debugf("Skip request: %s", request)
+			level.Debug(logger).Log("msg", "Skip request", "request", request)
 			continue
 		}
 		if strings.Contains(request, "/node/") || strings.Contains(request, "/rnode/") || strings.Contains(request, "websockify") {
@@ -146,8 +148,9 @@ func getApacheMetrics(apacheStatus string, fqdn string, ctx context.Context) (Ap
 	return metrics, nil
 }
 
-func NewApacheCollector() *ApacheCollector {
+func NewApacheCollector(logger log.Logger) *ApacheCollector {
 	return &ApacheCollector{
+		logger:                  logger,
 		WebsocketConnections:    prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "websocket_connections"), "Number of websocket connections", nil, nil),
 		UniqueWebsocketClients:  prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "unique_websocket_clients"), "Unique websocket connections", nil, nil),
 		ClientConnections:       prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "client_connections"), "Number of client connections", nil, nil),
@@ -156,13 +159,13 @@ func NewApacheCollector() *ApacheCollector {
 }
 
 func (c *ApacheCollector) collect(apacheStatus string, fqdn string, ch chan<- prometheus.Metric) error {
-	log.Debug("Collecting apache metrics")
+	level.Debug(c.logger).Log("msg", "Collecting apache metrics")
 	collectTime := time.Now()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(*apacheTimeout)*time.Second)
 	defer cancel()
-	apacheMetrics, err := getApacheMetrics(apacheStatus, fqdn, ctx)
+	apacheMetrics, err := getApacheMetrics(apacheStatus, fqdn, ctx, c.logger)
 	if ctx.Err() == context.DeadlineExceeded {
-		log.Error("Timeout requesting Apache metrics")
+		level.Error(c.logger).Log("msg", "Timeout requesting Apache metrics")
 		ch <- prometheus.MustNewConstMetric(collecTimeout, prometheus.GaugeValue, 1, "apache")
 		return nil
 	}

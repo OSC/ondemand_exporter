@@ -23,14 +23,18 @@
 package main
 
 import (
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
 
 	"github.com/OSC/ondemand_exporter/collectors"
+	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/prometheus/common/log"
+	"github.com/prometheus/common/promlog"
+	"github.com/prometheus/common/promlog/flag"
 	"github.com/prometheus/common/version"
 	"gopkg.in/alecthomas/kingpin.v2"
 	"gopkg.in/yaml.v2"
@@ -49,35 +53,34 @@ type oodPortal struct {
 	Port       string `yaml:"port"`
 }
 
-func getFQDN() string {
+func getFQDN(logger log.Logger) string {
 	hostname, err := osHostname()
 	if err != nil {
-		log.Infof("Unable to determine FQDN: %v", err)
+		level.Info(logger).Log("msg", fmt.Sprintf("Unable to determine FQDN: %v", err))
 		return fqdn
 	}
 	return hostname
 }
 
-func getApacheStatusURL() string {
+func getApacheStatusURL(logger log.Logger) string {
 	defaultApacheStatusURL := "http://" + fqdn + "/server-status"
 	var config oodPortal
 	var servername, port, apacheStatus string
 	_, statErr := os.Stat(oodPortalPath)
 	if os.IsNotExist(statErr) {
-		log.Infof("File %s not found, using default Apache status URL", oodPortalPath)
+		level.Info(logger).Log("msg", "File not found, using default Apache status URL", "file", oodPortalPath)
 		return defaultApacheStatusURL
 	}
 	data, err := ioutil.ReadFile(oodPortalPath)
 	if err != nil {
-		log.Errorf("Error reading %s: %v", oodPortalPath, err)
+		level.Error(logger).Log("msg", fmt.Sprintf("Error reading %s: %v", oodPortalPath, err))
 		return defaultApacheStatusURL
 	}
-	log.Debugf("DATA: %v", string(data))
 	if err := yaml.Unmarshal(data, &config); err != nil {
-		log.Errorf("Error parsing %s: %v", oodPortalPath, err)
+		level.Error(logger).Log("msg", fmt.Sprintf("Error parsing %s: %v", oodPortalPath, err))
 		return defaultApacheStatusURL
 	}
-	log.Debugf("Parsed %s servername=%s port=%s config=%v", oodPortalPath, config.Servername, config.Port, config)
+	level.Debug(logger).Log("msg", fmt.Sprintf("Parsed %s", oodPortalPath), "servername", config.Servername, "port", config.Port, "config", config)
 	if config.Servername != "" {
 		servername = config.Servername
 	} else {
@@ -96,12 +99,12 @@ func getApacheStatusURL() string {
 	return apacheStatus
 }
 
-func metricsHandler() http.HandlerFunc {
+func metricsHandler(logger log.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		collector := collectors.NewCollector()
-		collector.Fqdn = getFQDN()
+		collector := collectors.NewCollector(logger)
+		collector.Fqdn = getFQDN(logger)
 		if *apacheStatusURL == "" {
-			collector.ApacheStatus = getApacheStatusURL()
+			collector.ApacheStatus = getApacheStatusURL(logger)
 		} else {
 			collector.ApacheStatus = *apacheStatusURL
 		}
@@ -122,18 +125,19 @@ func metricsHandler() http.HandlerFunc {
 
 func main() {
 	metricsEndpoint := "/metrics"
-	log.AddFlags(kingpin.CommandLine)
+	promlogConfig := &promlog.Config{}
+	flag.AddFlags(kingpin.CommandLine, promlogConfig)
 	kingpin.Version(version.Print("ondemand_exporter"))
 	kingpin.HelpFlag.Short('h')
 	kingpin.Parse()
 
-	log.Infoln("Starting ondemand_exporter", version.Info())
-	log.Infoln("Build context", version.BuildContext())
-	log.Infof("Starting Server: %s", *listenAddr)
+	logger := promlog.New(promlogConfig)
+	level.Info(logger).Log("msg", "Starting gpfs_exporter", "version", version.Info())
+	level.Info(logger).Log("msg", "Build context", "build_context", version.BuildContext())
+	level.Info(logger).Log("msg", "Starting Server", "address", *listenAddr)
 
-	http.Handle(metricsEndpoint, metricsHandler())
+	http.Handle(metricsEndpoint, metricsHandler(logger))
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		//nolint:errcheck
 		w.Write([]byte(`<html>
              <head><title>OnDemand Exporter</title></head>
              <body>
@@ -142,5 +146,9 @@ func main() {
              </body>
              </html>`))
 	})
-	log.Fatal(http.ListenAndServe(*listenAddr, nil))
+	err := http.ListenAndServe(*listenAddr, nil)
+	if err != nil {
+		level.Error(logger).Log("err", err)
+		os.Exit(1)
+	}
 }

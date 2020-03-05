@@ -23,12 +23,14 @@
 package collectors
 
 import (
+	"fmt"
 	"runtime"
 	"strings"
 	"time"
 
+	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/common/log"
 	"github.com/shirou/gopsutil/process"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
@@ -43,6 +45,7 @@ type ProcessCollector struct {
 	PunCpuPercent    *prometheus.Desc
 	PunMemory        *prometheus.Desc
 	PunMemoryPercent *prometheus.Desc
+	logger           log.Logger
 }
 
 type ProcessMetrics struct {
@@ -54,7 +57,7 @@ type ProcessMetrics struct {
 	PunMemoryPercent float32
 }
 
-func getProcessMetrics(puns []string) (ProcessMetrics, error) {
+func getProcessMetrics(puns []string, logger log.Logger) (ProcessMetrics, error) {
 	var metrics ProcessMetrics
 	rackApps := 0
 	nodeApps := 0
@@ -67,7 +70,7 @@ func getProcessMetrics(puns []string) (ProcessMetrics, error) {
 	if err != nil {
 		return ProcessMetrics{}, err
 	}
-	log.Debugf("Getting process for PUNS: %v", puns)
+	level.Debug(logger).Log("msg", "Getting process for PUNS", "puns", puns)
 	for _, proc := range procs {
 		user, _ := proc.Username()
 		if user == "root" {
@@ -75,7 +78,7 @@ func getProcessMetrics(puns []string) (ProcessMetrics, error) {
 		}
 		cmdline, _ := proc.Cmdline()
 		if punProc := sliceContains(puns, user); !punProc {
-			log.Debugf("Skip proc not owned by PUN user=%s cmdline=%s", user, cmdline)
+			level.Debug(logger).Log("msg", "Skip proc not owned by PUN", "user", user, "cmdline", cmdline)
 			continue
 		}
 		if strings.Contains(cmdline, "rack-loader.rb") {
@@ -85,7 +88,7 @@ func getProcessMetrics(puns []string) (ProcessMetrics, error) {
 		}
 		cpupercent, _ := proc.CPUPercent()
 		pun_cpu_percent = pun_cpu_percent + cpupercent
-		log.Debugf("PUN user=%s, cmd=%s cpupercent=%f total=%f", user, cmdline, cpupercent, pun_cpu_percent)
+		level.Debug(logger).Log("msg", "PUN", "user", user, "cmd", cmdline, "cpupercent", cpupercent, "total", pun_cpu_percent)
 		meminfo, err := proc.MemoryInfo()
 		if err == nil {
 			memrss := meminfo.RSS
@@ -98,9 +101,9 @@ func getProcessMetrics(puns []string) (ProcessMetrics, error) {
 			pun_memory_percent = pun_memory_percent + mempercent
 		}
 	}
-	log.Debugf("APPS rack=%d node=%d", rackApps, nodeApps)
+	level.Debug(logger).Log("msg", "APPS", "rack", rackApps, "node", nodeApps)
 	newcpupercent := pun_cpu_percent / float64(cores)
-	log.Debugf("Cores %d New CPU percent: %f", cores, newcpupercent)
+	level.Debug(logger).Log("msg", fmt.Sprintf("Cores %d New CPU percent: %f", cores, newcpupercent))
 	metrics.RackApps = rackApps
 	metrics.NodeApps = nodeApps
 	metrics.PunCpuPercent = pun_cpu_percent
@@ -110,8 +113,9 @@ func getProcessMetrics(puns []string) (ProcessMetrics, error) {
 	return metrics, nil
 }
 
-func NewProcessCollector() *ProcessCollector {
+func NewProcessCollector(logger log.Logger) *ProcessCollector {
 	return &ProcessCollector{
+		logger:           logger,
 		RackApps:         prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "rack_apps"), "Number of running Rack apps", nil, nil),
 		NodeApps:         prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "node_apps"), "Number of running NodeJS apps", nil, nil),
 		PunCpuPercent:    prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "pun_cpu_percent"), "Percent CPU of all PUNs", nil, nil),
@@ -121,7 +125,7 @@ func NewProcessCollector() *ProcessCollector {
 }
 
 func (c *ProcessCollector) collect(puns []string, ch chan<- prometheus.Metric) error {
-	log.Debug("Collecting process metrics")
+	level.Debug(c.logger).Log("msg", "Collecting process metrics")
 	collectTime := time.Now()
 
 	c1 := make(chan int, 1)
@@ -129,7 +133,7 @@ func (c *ProcessCollector) collect(puns []string, ch chan<- prometheus.Metric) e
 	var processMetrics ProcessMetrics
 	var err error
 	go func() {
-		processMetrics, err = getProcessMetrics(puns)
+		processMetrics, err = getProcessMetrics(puns, c.logger)
 		if !timeout {
 			c1 <- 1
 		}
@@ -140,7 +144,7 @@ func (c *ProcessCollector) collect(puns []string, ch chan<- prometheus.Metric) e
 		timeout = true
 		close(c1)
 		ch <- prometheus.MustNewConstMetric(collecTimeout, prometheus.GaugeValue, 1, "process")
-		log.Error("Timeout collecting process information")
+		level.Error(c.logger).Log("msg", "Timeout collecting process information")
 		return nil
 	}
 	close(c1)
