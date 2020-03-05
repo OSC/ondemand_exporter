@@ -29,8 +29,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/common/log"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 
@@ -57,6 +58,7 @@ type Collector struct {
 	ApacheStatus string
 	Fqdn         string
 	ActivePuns   *prometheus.Desc
+	logger       log.Logger
 }
 
 func sliceContains(slice []string, str string) bool {
@@ -84,27 +86,28 @@ func getActivePuns(ctx context.Context) ([]string, error) {
 	return puns, nil
 }
 
-func NewCollector() *Collector {
+func NewCollector(logger log.Logger) *Collector {
 	return &Collector{
+		logger:     logger,
 		ActivePuns: prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "active_puns"), "Active PUNs", nil, nil),
 	}
 }
 
 func (c *Collector) collect(ch chan<- prometheus.Metric) error {
-	log.Debug("Collecting metrics")
+	level.Debug(c.logger).Log("msg", "Collecting metrics")
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(*punsTimeout)*time.Second)
 	defer cancel()
 	collectTime := time.Now()
 	puns, err := getActivePuns(ctx)
 	if ctx.Err() == context.DeadlineExceeded {
 		ch <- prometheus.MustNewConstMetric(collecTimeout, prometheus.GaugeValue, 1, "puns")
-		log.Error("Timeout collecting PUNs")
+		level.Error(c.logger).Log("msg", "Timeout collecting PUNs")
 		return nil
 	}
 	ch <- prometheus.MustNewConstMetric(collecTimeout, prometheus.GaugeValue, 0, "puns")
 	if err != nil {
 		ch <- prometheus.MustNewConstMetric(collecError, prometheus.GaugeValue, 1, "puns")
-		log.Error(err)
+		level.Error(c.logger).Log("msg", err)
 		return nil
 	}
 	ch <- prometheus.MustNewConstMetric(collecError, prometheus.GaugeValue, 0, "puns")
@@ -115,10 +118,10 @@ func (c *Collector) collect(ch chan<- prometheus.Metric) error {
 	wg.Add(2)
 
 	go func(puns []string) {
-		p := NewProcessCollector()
+		p := NewProcessCollector(log.With(c.logger, "collector", "process"))
 		err := p.collect(puns, ch)
 		if err != nil {
-			log.Errorf("Error collecting process information: %s", err.Error())
+			level.Error(c.logger).Log("msg", "Error collecting process information", "err", err)
 			ch <- prometheus.MustNewConstMetric(collecError, prometheus.GaugeValue, 1, "process")
 		} else {
 			ch <- prometheus.MustNewConstMetric(collecError, prometheus.GaugeValue, 0, "process")
@@ -127,10 +130,10 @@ func (c *Collector) collect(ch chan<- prometheus.Metric) error {
 	}(puns)
 
 	go func() {
-		a := NewApacheCollector()
+		a := NewApacheCollector(log.With(c.logger, "collector", "apache"))
 		err := a.collect(c.ApacheStatus, c.Fqdn, ch)
 		if err != nil {
-			log.Errorf("Error collecting apache information: %s", err.Error())
+			level.Error(c.logger).Log("msg", "Error collecting apache information", "err", err)
 			ch <- prometheus.MustNewConstMetric(collecError, prometheus.GaugeValue, 1, "apache")
 		} else {
 			ch <- prometheus.MustNewConstMetric(collecError, prometheus.GaugeValue, 0, "apache")
@@ -149,6 +152,6 @@ func (c *Collector) Collect(ch chan<- prometheus.Metric) {
 	c.Lock() // To protect metrics from concurrent collects.
 	defer c.Unlock()
 	if err := c.collect(ch); err != nil {
-		log.Errorf("Error scraping ondemand: %s", err)
+		level.Error(c.logger).Log("msg", "Error scraping ondemand", "err", err)
 	}
 }

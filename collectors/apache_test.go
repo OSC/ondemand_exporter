@@ -29,6 +29,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
+
+	"github.com/go-kit/kit/log"
 )
 
 func TestGetApacheMetrics(t *testing.T) {
@@ -43,7 +45,7 @@ func TestGetApacheMetrics(t *testing.T) {
 		_, _ = rw.Write(fixtureData)
 	}))
 	defer server.Close()
-	m, err := getApacheMetrics(server.URL, "ood.example.com", ctx)
+	m, err := getApacheMetrics(server.URL, "ood.example.com", ctx, log.NewNopLogger())
 	if err != nil {
 		t.Errorf("Unexpected error: %s", err.Error())
 		return
@@ -74,7 +76,7 @@ func TestGetApacheMetricsThreadMPM(t *testing.T) {
 		_, _ = rw.Write(fixtureData)
 	}))
 	defer server.Close()
-	m, err := getApacheMetrics(server.URL, "ood.example.com", ctx)
+	m, err := getApacheMetrics(server.URL, "ood.example.com", ctx, log.NewNopLogger())
 	if err != nil {
 		t.Errorf("Unexpected error: %s", err.Error())
 		return
