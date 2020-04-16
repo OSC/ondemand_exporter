@@ -104,7 +104,7 @@ func getProcessMetrics(puns []string, logger log.Logger) (ProcessMetrics, error)
 	level.Debug(logger).Log("msg", fmt.Sprintf("Cores %d New CPU percent: %f", cores(), newcpupercent))
 	metrics.RackApps = rackApps
 	metrics.NodeApps = nodeApps
-	metrics.PunCpuPercent = pun_cpu_percent
+	metrics.PunCpuPercent = newcpupercent
 	metrics.PunMemoryRSS = pun_memory_rss
 	metrics.PunMemoryVMS = pun_memory_vms
 	metrics.PunMemoryPercent = pun_memory_percent
