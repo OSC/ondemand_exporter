@@ -93,6 +93,9 @@ bar`
 }
 
 func TestCollector(t *testing.T) {
+	if _, err := kingpin.CommandLine.Parse([]string{}); err != nil {
+		t.Fatal(err)
+	}
 	execCommand = fakeExecCommand
 	mockedStdout = `
 foo
@@ -109,6 +112,26 @@ bar`
 		_, _ = rw.Write(fixtureData)
 	}))
 	defer server.Close()
+	tmpDir, err := ioutil.TempDir(os.TempDir(), "passenger")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+	passengerStatus := tmpDir + "/ondemand-passenger-status"
+	if err := ioutil.WriteFile(passengerStatus, []byte(""), 0644); err != nil {
+		t.Fatal(err)
+	}
+	passengerStatusPath = &passengerStatus
+	passengerStatusExec = func(ctx context.Context, instance string, logger log.Logger) (string, error) {
+		return readFixture("passenger-status.out")
+	}
+	passengerStatusExecInstance = func(ctx context.Context, instance string, logger log.Logger) (string, error) {
+		return readFixture(fmt.Sprintf("passenger-status-%s.out", instance))
+	}
+	timeNow = func() time.Time {
+		mockNow, _ := time.Parse("01/02/2006", "04/17/2020")
+		return mockNow
+	}
 	expected := `
 		# HELP ondemand_active_puns Active PUNs
 		# TYPE ondemand_active_puns gauge
@@ -116,9 +139,46 @@ bar`
 		# HELP ondemand_client_connections Number of client connections
 		# TYPE ondemand_client_connections gauge
 		ondemand_client_connections 63
+		# HELP ondemand_exporter_collect_error Indicates the collector had an error
+		# TYPE ondemand_exporter_collect_error gauge
+		ondemand_exporter_collect_error{collector="apache"} 0
+		ondemand_exporter_collect_error{collector="passenger"} 0
+		ondemand_exporter_collect_error{collector="process"} 0
+		ondemand_exporter_collect_error{collector="puns"} 0
 		# HELP ondemand_node_apps Number of running NodeJS apps
 		# TYPE ondemand_node_apps gauge
 		ondemand_node_apps 0
+		# HELP ondemand_passenger_instances Number of Passenger instances
+		# TYPE ondemand_passenger_instances gauge
+		ondemand_passenger_instances 2
+		# HELP ondemand_passenger_app_average_runtime_seconds Average runtime in seconds of passenger apps
+		# TYPE ondemand_passenger_app_average_runtime_seconds gauge
+		ondemand_passenger_app_average_runtime_seconds{app="/var/www/ood/apps/sys/dashboard"} 36369
+		ondemand_passenger_app_average_runtime_seconds{app="/var/www/ood/apps/sys/files"} 36799
+		# HELP ondemand_passenger_app_count Count of passenger instances of an app
+		# TYPE ondemand_passenger_app_count gauge
+		ondemand_passenger_app_count{app="/var/www/ood/apps/sys/dashboard"} 2
+		ondemand_passenger_app_count{app="/var/www/ood/apps/sys/files"} 1
+		# HELP ondemand_passenger_app_cpu_percent CPU percent of passenger apps
+		# TYPE ondemand_passenger_app_cpu_percent gauge
+		ondemand_passenger_app_cpu_percent{app="/var/www/ood/apps/sys/dashboard"} 2
+		ondemand_passenger_app_cpu_percent{app="/var/www/ood/apps/sys/files"} 0
+		# HELP ondemand_passenger_app_processes Process count of an app
+		# TYPE ondemand_passenger_app_processes gauge
+		ondemand_passenger_app_processes{app="/var/www/ood/apps/sys/dashboard"} 2
+		ondemand_passenger_app_processes{app="/var/www/ood/apps/sys/files"} 1
+		# HELP ondemand_passenger_app_real_memory_bytes Real memory of passenger apps
+		# TYPE ondemand_passenger_app_real_memory_bytes gauge
+		ondemand_passenger_app_real_memory_bytes{app="/var/www/ood/apps/sys/dashboard"} 187949056
+		ondemand_passenger_app_real_memory_bytes{app="/var/www/ood/apps/sys/files"} 42954752
+		# HELP ondemand_passenger_app_requests_total Requests made to passenger apps
+		# TYPE ondemand_passenger_app_requests_total counter
+		ondemand_passenger_app_requests_total{app="/var/www/ood/apps/sys/dashboard"} 342
+		ondemand_passenger_app_requests_total{app="/var/www/ood/apps/sys/files"} 10
+		# HELP ondemand_passenger_app_rss_bytes RSS of passenger apps
+		# TYPE ondemand_passenger_app_rss_bytes gauge
+		ondemand_passenger_app_rss_bytes{app="/var/www/ood/apps/sys/dashboard"} 202727424
+		ondemand_passenger_app_rss_bytes{app="/var/www/ood/apps/sys/files"} 56840192
 		# HELP ondemand_pun_cpu_percent Percent CPU of all PUNs
 		# TYPE ondemand_pun_cpu_percent gauge
 		ondemand_pun_cpu_percent 0
@@ -142,15 +202,20 @@ bar`
 		# TYPE ondemand_websocket_connections gauge
 		ondemand_websocket_connections 5
 	`
-	collector := NewCollector(log.NewNopLogger())
+	w := log.NewSyncWriter(os.Stderr)
+	logger := log.NewLogfmtLogger(w)
+	collector := NewCollector(logger)
 	collector.ApacheStatus = server.URL
 	gatherers := setupGatherer(collector)
-	if val := testutil.CollectAndCount(collector); val != 20 {
-		t.Errorf("Unexpected collection count %d, expected 20", val)
+	if val := testutil.CollectAndCount(collector); val != 37 {
+		t.Errorf("Unexpected collection count %d, expected 37", val)
 	}
-	if err := testutil.GatherAndCompare(gatherers, strings.NewReader(expected), "ondemand_active_puns",
+	if err := testutil.GatherAndCompare(gatherers, strings.NewReader(expected), "ondemand_active_puns", "ondemand_exporter_collect_error",
 		"ondemand_client_connections", "ondemand_unique_client_connections", "ondemand_unique_websocket_clients", "ondemand_websocket_connections",
-		"ondemand_node_apps", "ondemand_rack_apps", "ondemand_pun_cpu_percent", "ondemand_pun_memory", "ondemand_pun_memory_percent"); err != nil {
+		"ondemand_node_apps", "ondemand_rack_apps", "ondemand_pun_cpu_percent", "ondemand_pun_memory", "ondemand_pun_memory_percent",
+		"ondemand_passenger_instances", "ondemand_passenger_app_count", "ondemand_passenger_app_processes",
+		"ondemand_passenger_app_rss_bytes", "ondemand_passenger_app_real_memory_bytes", "ondemand_passenger_app_cpu_percent",
+		"ondemand_passenger_app_requests_total", "ondemand_passenger_app_average_runtime_seconds"); err != nil {
 		t.Errorf("unexpected collecting result:\n%s", err)
 	}
 }
@@ -160,4 +225,12 @@ func setupGatherer(collector *Collector) prometheus.Gatherer {
 	registry.MustRegister(collector)
 	gatherers := prometheus.Gatherers{registry}
 	return gatherers
+}
+
+func readFixture(name string) (string, error) {
+	_, filename, _, _ := runtime.Caller(0)
+	dir := filepath.Dir(filename)
+	fixture := filepath.Join(dir, fmt.Sprintf("fixtures/%s", name))
+	fixtureData, err := ioutil.ReadFile(fixture)
+	return string(fixtureData), err
 }

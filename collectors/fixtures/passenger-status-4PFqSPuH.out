@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="iso8859-1"?>
+<info version="3">
+   <passenger_version>6.0.4</passenger_version>
+   <group_count>2</group_count>
+   <process_count>2</process_count>
+   <max>6</max>
+   <capacity_used>2</capacity_used>
+   <get_wait_list_size>0</get_wait_list_size>
+   <supergroups>
+      <supergroup>
+         <name>/var/www/ood/apps/sys/dashboard (production)</name>
+         <state>READY</state>
+         <get_wait_list_size>0</get_wait_list_size>
+         <capacity_used>1</capacity_used>
+         <group default="true">
+            <name>/var/www/ood/apps/sys/dashboard (production)</name>
+            <component_name>/var/www/ood/apps/sys/dashboard (production)</component_name>
+            <app_root>/var/www/ood/apps/sys/dashboard</app_root>
+            <app_type>ruby</app_type>
+            <environment>production</environment>
+            <uuid>aqSGhaKg4sULR7OZ8gdb</uuid>
+            <enabled_process_count>1</enabled_process_count>
+            <disabling_process_count>0</disabling_process_count>
+            <disabled_process_count>0</disabled_process_count>
+            <capacity_used>1</capacity_used>
+            <get_wait_list_size>0</get_wait_list_size>
+            <disable_wait_list_size>0</disable_wait_list_size>
+            <processes_being_spawned>0</processes_being_spawned>
+            <life_status>ALIVE</life_status>
+            <user>osu10579</user>
+            <uid>25056</uid>
+            <group>PAS1064</group>
+            <gid>4410</gid>
+            <options>
+               <app_root>/var/www/ood/apps/sys/dashboard</app_root>
+               <app_group_name>/var/www/ood/apps/sys/dashboard (production)</app_group_name>
+               <app_type>ruby</app_type>
+               <start_command>/opt/ood/nginx_stage/bin/ruby /opt/rh/ondemand/root/usr/share/passenger/helper-scripts/rack-loader.rb</start_command>
+               <startup_file>/var/www/ood/apps/sys/dashboard/config.ru</startup_file>
+               <log_level>3</log_level>
+               <start_timeout>90000</start_timeout>
+               <environment>production</environment>
+               <base_uri>/pun/sys/dashboard</base_uri>
+               <spawn_method>direct</spawn_method>
+               <default_user>osu10579</default_user>
+               <default_group>PAS1064</default_group>
+               <restart_dir>tmp</restart_dir>
+               <integration_mode>nginx</integration_mode>
+               <ruby>/opt/ood/nginx_stage/bin/ruby</ruby>
+               <python>/opt/ood/nginx_stage/bin/python</python>
+               <nodejs>/opt/ood/nginx_stage/bin/node</nodejs>
+               <debugger>false</debugger>
+               <api_key>ZYCcCulqZos7LPj9</api_key>
+               <min_processes>0</min_processes>
+               <max_processes>0</max_processes>
+               <max_preloader_idle_time>300</max_preloader_idle_time>
+               <max_out_of_band_work_instances>1</max_out_of_band_work_instances>
+            </options>
+            <processes>
+               <process>
+                  <pid>57625</pid>
+                  <sticky_session_id>1015106556</sticky_session_id>
+                  <gupid>1939b3a-f6nkEtkD8A</gupid>
+                  <concurrency>1</concurrency>
+                  <sessions>0</sessions>
+                  <busyness>0</busyness>
+                  <processed>220</processed>
+                  <spawner_creation_time>1587044800719494</spawner_creation_time>
+                  <spawn_start_time>1587044800733313</spawn_start_time>
+                  <spawn_end_time>1587044802504738</spawn_end_time>
+                  <last_used>1587047047741469</last_used>
+                  <last_used_desc>10s ago</last_used_desc>
+                  <uptime>37m 35s</uptime>
+                  <life_status>ALIVE</life_status>
+                  <enabled>ENABLED</enabled>
+                  <has_metrics>true</has_metrics>
+                  <cpu>1</cpu>
+                  <rss>104264</rss>
+                  <pss>97285</pss>
+                  <private_dirty>97156</private_dirty>
+                  <swap>0</swap>
+                  <real_memory>97156</real_memory>
+                  <vmsize>438348</vmsize>
+                  <process_group_id>57568</process_group_id>
+                  <command>ruby /opt/rh/ondemand/root/usr/share/passenger/helper-scripts/rack-loader.rb</command>
+               </process>
+            </processes>
+         </group>
+      </supergroup>
+      <supergroup>
+         <name>/var/www/ood/apps/sys/files (production)</name>
+         <state>READY</state>
+         <get_wait_list_size>0</get_wait_list_size>
+         <capacity_used>1</capacity_used>
+         <group default="true">
+            <name>/var/www/ood/apps/sys/files (production)</name>
+            <component_name>/var/www/ood/apps/sys/files (production)</component_name>
+            <app_root>/var/www/ood/apps/sys/files</app_root>
+            <app_type>nodejs</app_type>
+            <environment>production</environment>
+            <uuid>1VIru2kWizfOnpTPWyc0</uuid>
+            <enabled_process_count>1</enabled_process_count>
+            <disabling_process_count>0</disabling_process_count>
+            <disabled_process_count>0</disabled_process_count>
+            <capacity_used>1</capacity_used>
+            <get_wait_list_size>0</get_wait_list_size>
+            <disable_wait_list_size>0</disable_wait_list_size>
+            <processes_being_spawned>0</processes_being_spawned>
+            <life_status>ALIVE</life_status>
+            <user>osu10579</user>
+            <uid>25056</uid>
+            <group>PAS1064</group>
+            <gid>4410</gid>
+            <options>
+               <app_root>/var/www/ood/apps/sys/files</app_root>
+               <app_group_name>/var/www/ood/apps/sys/files (production)</app_group_name>
+               <app_type>nodejs</app_type>
+               <start_command>/opt/ood/nginx_stage/bin/node /opt/rh/ondemand/root/usr/share/passenger/helper-scripts/node-loader.js</start_command>
+               <startup_file>/var/www/ood/apps/sys/files/app.js</startup_file>
+               <log_level>3</log_level>
+               <start_timeout>90000</start_timeout>
+               <environment>production</environment>
+               <base_uri>/pun/sys/files</base_uri>
+               <spawn_method>direct</spawn_method>
+               <default_user>osu10579</default_user>
+               <default_group>PAS1064</default_group>
+               <restart_dir>tmp</restart_dir>
+               <integration_mode>nginx</integration_mode>
+               <ruby>/opt/ood/nginx_stage/bin/ruby</ruby>
+               <python>/opt/ood/nginx_stage/bin/python</python>
+               <nodejs>/opt/ood/nginx_stage/bin/node</nodejs>
+               <debugger>false</debugger>
+               <api_key>pC2DBM446eS9asOa</api_key>
+               <min_processes>0</min_processes>
+               <max_processes>0</max_processes>
+               <max_preloader_idle_time>300</max_preloader_idle_time>
+               <max_out_of_band_work_instances>1</max_out_of_band_work_instances>
+            </options>
+            <processes>
+               <process>
+                  <pid>57690</pid>
+                  <sticky_session_id>715442637</sticky_session_id>
+                  <gupid>1939b3a-tw6fwXDUCk</gupid>
+                  <concurrency>0</concurrency>
+                  <sessions>1</sessions>
+                  <busyness>1</busyness>
+                  <processed>10</processed>
+                  <spawner_creation_time>1587044801789313</spawner_creation_time>
+                  <spawn_start_time>1587044801790162</spawn_start_time>
+                  <spawn_end_time>1587044802902022</spawn_end_time>
+                  <last_used>1587044813739456</last_used>
+                  <last_used_desc>37m 24s ago</last_used_desc>
+                  <uptime>37m 35s</uptime>
+                  <life_status>ALIVE</life_status>
+                  <enabled>ENABLED</enabled>
+                  <has_metrics>true</has_metrics>
+                  <cpu>0</cpu>
+                  <rss>55508</rss>
+                  <pss>42326</pss>
+                  <private_dirty>41948</private_dirty>
+                  <swap>0</swap>
+                  <real_memory>41948</real_memory>
+                  <vmsize>942816</vmsize>
+                  <process_group_id>57568</process_group_id>
+                  <command>Passenger NodeApp: /var/www/ood/apps/sys/files</command>
+               </process>
+            </processes>
+         </group>
+      </supergroup>
+   </supergroups>
+</info>
