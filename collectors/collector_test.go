@@ -132,6 +132,9 @@ bar`
 		mockNow, _ := time.Parse("01/02/2006", "04/17/2020")
 		return mockNow
 	}
+	cores = func() int {
+		return 1
+	}
 	expected := `
 		# HELP ondemand_active_puns Active PUNs
 		# TYPE ondemand_active_puns gauge

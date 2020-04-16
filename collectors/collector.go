@@ -26,6 +26,7 @@ import (
 	"context"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -44,6 +45,7 @@ var (
 	punsTimeout     = kingpin.Flag("collector.puns.timeout", "Timeout for collecting PUNs").Default("10").Int()
 	execCommand     = exec.CommandContext
 	timeNow         = getTimeNow
+	cores           = getCores
 	collectDuration = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, "exporter", "collect_duration_seconds"),
 		"Collector time duration", []string{"collector"}, nil)
@@ -82,6 +84,10 @@ func fileExists(filename string) bool {
 
 func getTimeNow() time.Time {
 	return time.Now()
+}
+
+func getCores() int {
+	return runtime.NumCPU()
 }
 
 func getActivePuns(ctx context.Context) ([]string, error) {

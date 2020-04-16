@@ -68,14 +68,14 @@ type PassengerAppMetrics struct {
 	ProcCount         int
 	Processes         []PassengerProcessMetrics
 	RSS               int
-	CPU               int
+	CPU               float64
 	RealMemory        int
 	RequestsProcessed int
 	Runtime           int64
 }
 type PassengerProcessMetrics struct {
 	RSS               int
-	CPU               int
+	CPU               float64
 	RealMemory        int
 	RequestsProcessed int
 	Runtime           int64
@@ -143,7 +143,7 @@ func (c *PassengerCollector) collect(puns []string, ch chan<- prometheus.Metric)
 		ch <- prometheus.MustNewConstMetric(c.ProcCount, prometheus.GaugeValue, float64(metric.ProcCount), name)
 		ch <- prometheus.MustNewConstMetric(c.RSS, prometheus.GaugeValue, float64(metric.RSS), name)
 		ch <- prometheus.MustNewConstMetric(c.RealMemory, prometheus.GaugeValue, float64(metric.RealMemory), name)
-		ch <- prometheus.MustNewConstMetric(c.CPU, prometheus.GaugeValue, float64(metric.CPU), name)
+		ch <- prometheus.MustNewConstMetric(c.CPU, prometheus.GaugeValue, metric.CPU, name)
 		ch <- prometheus.MustNewConstMetric(c.Requests, prometheus.CounterValue, float64(metric.RequestsProcessed), name)
 		var runtime float64
 		if metric.ProcCount > 0 {
@@ -236,7 +236,7 @@ func (c *PassengerCollector) getMetrics(ctx context.Context, instance string) ([
 		for _, p := range s.Group.Processes {
 			var processMetrics PassengerProcessMetrics
 			processMetrics.RSS = p.RSS * 1024
-			processMetrics.CPU = p.CPU
+			processMetrics.CPU = float64(p.CPU) / float64(cores())
 			processMetrics.RealMemory = p.RealMemory * 1024
 			processMetrics.RequestsProcessed = p.RequestsProcessed
 			startTime := p.SpawnStartTime / microsecondsPerSecond
