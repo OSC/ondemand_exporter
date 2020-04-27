@@ -23,8 +23,6 @@
 package main
 
 import (
-	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 
@@ -37,78 +35,15 @@ import (
 	"github.com/prometheus/common/promlog/flag"
 	"github.com/prometheus/common/version"
 	"gopkg.in/alecthomas/kingpin.v2"
-	"gopkg.in/yaml.v2"
 )
 
 var (
-	listenAddr      = kingpin.Flag("listen", "Address on which to expose metrics.").Default(":9301").String()
-	apacheStatusURL = kingpin.Flag("apache-status", "URL to collect Apache status from").Default("").String()
-	oodPortalPath   = "/etc/ood/config/ood_portal.yml"
-	osHostname      = os.Hostname
-	fqdn            = "localhost"
+	listenAddr = kingpin.Flag("web.listen-address", "Address to listen on for web interface and telemetry.").Default(":9301").String()
 )
-
-type oodPortal struct {
-	Servername string `yaml:"servername"`
-	Port       string `yaml:"port"`
-}
-
-func getFQDN(logger log.Logger) string {
-	hostname, err := osHostname()
-	if err != nil {
-		level.Info(logger).Log("msg", fmt.Sprintf("Unable to determine FQDN: %v", err))
-		return fqdn
-	}
-	return hostname
-}
-
-func getApacheStatusURL(logger log.Logger) string {
-	defaultApacheStatusURL := "http://" + fqdn + "/server-status"
-	var config oodPortal
-	var servername, port, apacheStatus string
-	_, statErr := os.Stat(oodPortalPath)
-	if os.IsNotExist(statErr) {
-		level.Info(logger).Log("msg", "File not found, using default Apache status URL", "file", oodPortalPath)
-		return defaultApacheStatusURL
-	}
-	data, err := ioutil.ReadFile(oodPortalPath)
-	if err != nil {
-		level.Error(logger).Log("msg", fmt.Sprintf("Error reading %s: %v", oodPortalPath, err))
-		return defaultApacheStatusURL
-	}
-	if err := yaml.Unmarshal(data, &config); err != nil {
-		level.Error(logger).Log("msg", fmt.Sprintf("Error parsing %s: %v", oodPortalPath, err))
-		return defaultApacheStatusURL
-	}
-	level.Debug(logger).Log("msg", fmt.Sprintf("Parsed %s", oodPortalPath), "servername", config.Servername, "port", config.Port, "config", config)
-	if config.Servername != "" {
-		servername = config.Servername
-	} else {
-		servername = fqdn
-	}
-	if config.Port != "" {
-		port = config.Port
-	} else {
-		port = "80"
-	}
-	if port != "80" {
-		apacheStatus = "https://" + servername + "/server-status"
-	} else {
-		apacheStatus = "http://" + servername + "/server-status"
-	}
-	return apacheStatus
-}
 
 func metricsHandler(logger log.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		collector := collectors.NewCollector(logger)
-		collector.Fqdn = getFQDN(logger)
-		if *apacheStatusURL == "" {
-			collector.ApacheStatus = getApacheStatusURL(logger)
-		} else {
-			collector.ApacheStatus = *apacheStatusURL
-		}
-
 		registry := prometheus.NewRegistry()
 		registry.MustRegister(collector)
 		registry.MustRegister(version.NewCollector("ondemand_exporter"))

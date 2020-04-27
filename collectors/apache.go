@@ -27,6 +27,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -35,10 +36,14 @@ import (
 	"github.com/go-kit/kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
 	"gopkg.in/alecthomas/kingpin.v2"
+	"gopkg.in/yaml.v2"
 )
 
 var (
-	apacheTimeout = kingpin.Flag("collector.apache.timeout", "Timeout for collecting Apache metrics").Default("10").Int()
+	apacheStatusURL = kingpin.Flag("collector.apache.status-url", "URL to collect Apache status from").Default("").String()
+	apacheTimeout   = kingpin.Flag("collector.apache.timeout", "Timeout for collecting Apache metrics").Default("10").Int()
+	osHostname      = os.Hostname
+	fqdn            = "localhost"
 )
 
 type ApacheCollector struct {
@@ -57,6 +62,52 @@ type ApacheMetrics struct {
 }
 
 type connection map[string]interface{}
+
+func getFQDN(logger log.Logger) string {
+	hostname, err := osHostname()
+	if err != nil {
+		level.Info(logger).Log("msg", fmt.Sprintf("Unable to determine FQDN: %v", err))
+		return fqdn
+	}
+	return hostname
+}
+
+func getApacheStatusURL(logger log.Logger) string {
+	defaultApacheStatusURL := "http://" + fqdn + "/server-status"
+	var config oodPortal
+	var servername, port, apacheStatus string
+	_, statErr := os.Stat(oodPortalPath)
+	if os.IsNotExist(statErr) {
+		level.Info(logger).Log("msg", "File not found, using default Apache status URL", "file", oodPortalPath)
+		return defaultApacheStatusURL
+	}
+	data, err := ioutil.ReadFile(oodPortalPath)
+	if err != nil {
+		level.Error(logger).Log("msg", fmt.Sprintf("Error reading %s: %v", oodPortalPath, err))
+		return defaultApacheStatusURL
+	}
+	if err := yaml.Unmarshal(data, &config); err != nil {
+		level.Error(logger).Log("msg", fmt.Sprintf("Error parsing %s: %v", oodPortalPath, err))
+		return defaultApacheStatusURL
+	}
+	level.Debug(logger).Log("msg", fmt.Sprintf("Parsed %s", oodPortalPath), "servername", config.Servername, "port", config.Port, "config", config)
+	if config.Servername != "" {
+		servername = config.Servername
+	} else {
+		servername = fqdn
+	}
+	if config.Port != "" {
+		port = config.Port
+	} else {
+		port = "80"
+	}
+	if port != "80" {
+		apacheStatus = "https://" + servername + "/server-status"
+	} else {
+		apacheStatus = "http://" + servername + "/server-status"
+	}
+	return apacheStatus
+}
 
 func getApacheMetrics(apacheStatus string, fqdn string, ctx context.Context, logger log.Logger) (ApacheMetrics, error) {
 	var metrics ApacheMetrics
@@ -125,7 +176,7 @@ func getApacheMetrics(apacheStatus string, fqdn string, ctx context.Context, log
 			!strings.Contains(request, "/pun/") &&
 			!strings.Contains(request, "/nginx/") &&
 			!strings.Contains(request, "/oidc") {
-			level.Debug(logger).Log("msg", "Skip request", "request", request)
+			//level.Debug(logger).Log("msg", "Skip request", "request", request)
 			continue
 		}
 		if strings.Contains(request, "/node/") || strings.Contains(request, "/rnode/") || strings.Contains(request, "websockify") {
@@ -158,7 +209,14 @@ func NewApacheCollector(logger log.Logger) *ApacheCollector {
 	}
 }
 
-func (c *ApacheCollector) collect(apacheStatus string, fqdn string, ch chan<- prometheus.Metric) error {
+func (c *ApacheCollector) collect(ch chan<- prometheus.Metric) error {
+	var apacheStatus string
+	fqdn = getFQDN(c.logger)
+	if *apacheStatusURL == "" {
+		apacheStatus = getApacheStatusURL(c.logger)
+	} else {
+		apacheStatus = *apacheStatusURL
+	}
 	level.Debug(c.logger).Log("msg", "Collecting apache metrics")
 	collectTime := time.Now()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(*apacheTimeout)*time.Second)

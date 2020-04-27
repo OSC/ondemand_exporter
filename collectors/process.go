@@ -76,7 +76,7 @@ func getProcessMetrics(puns []string, logger log.Logger) (ProcessMetrics, error)
 		}
 		cmdline, _ := proc.Cmdline()
 		if punProc := sliceContains(puns, user); !punProc {
-			level.Debug(logger).Log("msg", "Skip proc not owned by PUN", "user", user, "cmdline", cmdline)
+			//level.Debug(logger).Log("msg", "Skip proc not owned by PUN", "user", user, "cmdline", cmdline)
 			continue
 		}
 		if strings.Contains(cmdline, "rack-loader.rb") {
