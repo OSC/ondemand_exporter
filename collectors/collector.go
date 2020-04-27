@@ -43,6 +43,7 @@ const (
 
 var (
 	punsTimeout     = kingpin.Flag("collector.puns.timeout", "Timeout for collecting PUNs").Default("10").Int()
+	oodPortalPath   = "/etc/ood/config/ood_portal.yml"
 	execCommand     = exec.CommandContext
 	timeNow         = getTimeNow
 	cores           = getCores
@@ -63,6 +64,11 @@ type Collector struct {
 	Fqdn         string
 	ActivePuns   *prometheus.Desc
 	logger       log.Logger
+}
+
+type oodPortal struct {
+	Servername string `yaml:"servername"`
+	Port       string `yaml:"port"`
 }
 
 func sliceContains(slice []string, str string) bool {
@@ -151,7 +157,7 @@ func (c *Collector) collect(ch chan<- prometheus.Metric) error {
 
 	go func() {
 		a := NewApacheCollector(log.With(c.logger, "collector", "apache"))
-		err := a.collect(c.ApacheStatus, c.Fqdn, ch)
+		err := a.collect(ch)
 		if err != nil {
 			level.Error(c.logger).Log("msg", "Error collecting apache information", "err", err)
 			ch <- prometheus.MustNewConstMetric(collecError, prometheus.GaugeValue, 1, "apache")

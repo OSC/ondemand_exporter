@@ -112,6 +112,7 @@ bar`
 		_, _ = rw.Write(fixtureData)
 	}))
 	defer server.Close()
+	apacheStatusURL = &server.URL
 	tmpDir, err := ioutil.TempDir(os.TempDir(), "passenger")
 	if err != nil {
 		t.Fatal(err)
@@ -208,7 +209,6 @@ bar`
 	w := log.NewSyncWriter(os.Stderr)
 	logger := log.NewLogfmtLogger(w)
 	collector := NewCollector(logger)
-	collector.ApacheStatus = server.URL
 	gatherers := setupGatherer(collector)
 	if val := testutil.CollectAndCount(collector); val != 37 {
 		t.Errorf("Unexpected collection count %d, expected 37", val)

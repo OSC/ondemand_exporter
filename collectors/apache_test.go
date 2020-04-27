@@ -26,12 +26,45 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
 
 	"github.com/go-kit/kit/log"
 )
+
+func TestGetApacheStatusURL_Default(t *testing.T) {
+	defer func() { osHostname = os.Hostname }()
+	fqdn = "foo.example.com"
+	osHostname = func() (string, error) { return "foo.example.com", nil }
+	ret := getApacheStatusURL(log.NewNopLogger())
+	expected := "http://foo.example.com/server-status"
+	if ret != expected {
+		t.Errorf("Expected %s, got %s", expected, ret)
+	}
+}
+
+func TestGetApacheStatusURL_read_ood_portal(t *testing.T) {
+	tmpDir, err := ioutil.TempDir(os.TempDir(), "tmp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+	oodPortalYAML := `
+servername: ood.example.com
+port: 443`
+	oodPortalPath = tmpDir + "/ood_porta.yml"
+	if err := ioutil.WriteFile(oodPortalPath, []byte(oodPortalYAML), 0644); err != nil {
+		t.Fatal(err)
+	}
+	fqdn = "foo.example.com"
+	ret := getApacheStatusURL(log.NewNopLogger())
+	expected := "https://ood.example.com/server-status"
+	if ret != expected {
+		t.Errorf("Expected %s, got %s", expected, ret)
+	}
+}
 
 func TestGetApacheMetrics(t *testing.T) {
 	_, filename, _, _ := runtime.Caller(0)
