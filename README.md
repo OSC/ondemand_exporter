@@ -21,6 +21,14 @@ All metrics are accessible via the `/metrics` location.
 * `ondemand_pun_cpu_percent` - CPU percent of all PUNs
 * `ondemand_pun_memory_bytes{type="rss|vms"}` - Memory RSS or virtual memory of all PUNs
 * `ondemand_pun_memory_percent` - Percent memory used by all PUNs
+* `ondemand_passenger_instances` - Number of Passenger instances
+* `ondemand_passenger_app_count` - Count of passenger instances of an app
+* `ondemand_passenger_app_processes` - Process count of an app
+* `ondemand_passenger_app_rss_bytes` - RSS of passenger apps
+* `ondemand_passenger_real_memory_bytes` - Real Memory of passenger apps [ref](https://www.phusionpassenger.com/library/indepth/accurately_measuring_memory_usage.html)
+* `ondemand_passenger_app_cpu_percent` - CPU percent of passenger apps
+* `ondemand_passenger_app_requests_total` - Requests made to passenger apps
+* `ondemand_passenger_app_average_runtime_seconds` - Average runtime in seconds of passenger apps
 
 Exporter metrics specific to status of the exporter
 
