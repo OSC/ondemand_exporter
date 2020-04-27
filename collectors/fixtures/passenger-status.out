@@ -1,0 +1,11 @@
+It appears that multiple Phusion Passenger instances are running. Please
+select a specific one by running:
+
+  passenger-status <NAME>
+
+The following Phusion Passenger instances are running:
+
+Name                       PID      Description
+--------------------------------------------------------------------------
+4PFqSPuH                   57564    nginx/1.17.3 Phusion_Passenger/6.0.4
+YxgQTchg                   97758    nginx/1.17.3 Phusion_Passenger/6.0.4

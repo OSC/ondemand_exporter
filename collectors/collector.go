@@ -24,7 +24,9 @@ package collectors
 
 import (
 	"context"
+	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -42,6 +44,8 @@ const (
 var (
 	punsTimeout     = kingpin.Flag("collector.puns.timeout", "Timeout for collecting PUNs").Default("10").Int()
 	execCommand     = exec.CommandContext
+	timeNow         = getTimeNow
+	cores           = getCores
 	collectDuration = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, "exporter", "collect_duration_seconds"),
 		"Collector time duration", []string{"collector"}, nil)
@@ -68,6 +72,22 @@ func sliceContains(slice []string, str string) bool {
 		}
 	}
 	return false
+}
+
+func fileExists(filename string) bool {
+	info, err := os.Stat(filename)
+	if os.IsNotExist(err) {
+		return false
+	}
+	return !info.IsDir()
+}
+
+func getTimeNow() time.Time {
+	return time.Now()
+}
+
+func getCores() int {
+	return runtime.NumCPU()
 }
 
 func getActivePuns(ctx context.Context) ([]string, error) {
@@ -115,7 +135,7 @@ func (c *Collector) collect(ch chan<- prometheus.Metric) error {
 	ch <- prometheus.MustNewConstMetric(collectDuration, prometheus.GaugeValue, time.Since(collectTime).Seconds(), "puns")
 
 	wg := &sync.WaitGroup{}
-	wg.Add(2)
+	wg.Add(3)
 
 	go func(puns []string) {
 		p := NewProcessCollector(log.With(c.logger, "collector", "process"))
@@ -140,6 +160,18 @@ func (c *Collector) collect(ch chan<- prometheus.Metric) error {
 		}
 		wg.Done()
 	}()
+
+	go func(puns []string) {
+		p := NewPassengerCollector(log.With(c.logger, "collector", "passenger"))
+		err := p.collect(puns, ch)
+		if err != nil {
+			level.Error(c.logger).Log("msg", "Error collecting passenger information", "err", err)
+			ch <- prometheus.MustNewConstMetric(collecError, prometheus.GaugeValue, 1, "passenger")
+		} else {
+			ch <- prometheus.MustNewConstMetric(collecError, prometheus.GaugeValue, 0, "passenger")
+		}
+		wg.Done()
+	}(puns)
 	wg.Wait()
 	return nil
 }
