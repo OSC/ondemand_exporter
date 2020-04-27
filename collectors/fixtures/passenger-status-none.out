@@ -1,0 +1,4 @@
+ERROR: Phusion Passenger doesn't seem to be running. If you are sure that it is running, then the causes of this problem could be:
+
+1. You customized the instance registry directory using Apache's PassengerInstanceRegistryDir option, Nginx's passenger_instance_registry_dir option, or Phusion Passenger Standalone's --instance-registry-dir command line argument. If so, please set the environment variable PASSENGER_INSTANCE_REGISTRY_DIR to that directory and run passenger-status again.
+2. The instance directory has been removed by an operating system background service. Please set a different instance registry directory using Apache's PassengerInstanceRegistryDir option, Nginx's passenger_instance_registry_dir option, or Phusion Passenger Standalone's --instance-registry-dir command line argument.

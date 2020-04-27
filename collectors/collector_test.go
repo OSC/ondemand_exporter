@@ -124,10 +124,10 @@ bar`
 	}
 	passengerStatusPath = &passengerStatus
 	passengerStatusExec = func(ctx context.Context, instance string, logger log.Logger) (string, error) {
-		return readFixture("passenger-status.out")
+		return readFixture("passenger-status.out"), nil
 	}
 	passengerStatusExecInstance = func(ctx context.Context, instance string, logger log.Logger) (string, error) {
-		return readFixture(fmt.Sprintf("passenger-status-%s.out", instance))
+		return readFixture(fmt.Sprintf("passenger-status-%s.out", instance)), nil
 	}
 	timeNow = func() time.Time {
 		mockNow, _ := time.Parse("01/02/2006", "04/17/2020")
@@ -223,6 +223,73 @@ bar`
 	}
 }
 
+func TestCollectorNoPassengerStatus(t *testing.T) {
+	if _, err := kingpin.CommandLine.Parse([]string{}); err != nil {
+		t.Fatal(err)
+	}
+	execCommand = fakeExecCommand
+	mockedStdout = `
+foo
+bar`
+	defer func() { execCommand = exec.CommandContext }()
+	_, filename, _, _ := runtime.Caller(0)
+	dir := filepath.Dir(filename)
+	fixture := filepath.Join(dir, "fixtures/status")
+	fixtureData, err := ioutil.ReadFile(fixture)
+	if err != nil {
+		t.Fatalf("Error loading fixture data: %s", err.Error())
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		_, _ = rw.Write(fixtureData)
+	}))
+	defer server.Close()
+	apacheStatusURL = &server.URL
+	tmpDir, err := ioutil.TempDir(os.TempDir(), "passenger")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+	passengerStatus := tmpDir + "/ondemand-passenger-status"
+	if err := ioutil.WriteFile(passengerStatus, []byte(""), 0644); err != nil {
+		t.Fatal(err)
+	}
+	passengerStatusPath = &passengerStatus
+	passengerStatusExec = func(ctx context.Context, instance string, logger log.Logger) (string, error) {
+		return readFixture("passenger-status-none.out"), nil
+	}
+	timeNow = func() time.Time {
+		mockNow, _ := time.Parse("01/02/2006", "04/17/2020")
+		return mockNow
+	}
+	cores = func() int {
+		return 1
+	}
+	expected := `
+		# HELP ondemand_exporter_collect_error Indicates the collector had an error
+		# TYPE ondemand_exporter_collect_error gauge
+		ondemand_exporter_collect_error{collector="apache"} 0
+		ondemand_exporter_collect_error{collector="passenger"} 0
+		ondemand_exporter_collect_error{collector="process"} 0
+		ondemand_exporter_collect_error{collector="puns"} 0
+		# HELP ondemand_passenger_instances Number of Passenger instances
+		# TYPE ondemand_passenger_instances gauge
+		ondemand_passenger_instances 0
+	`
+	w := log.NewSyncWriter(os.Stderr)
+	logger := log.NewLogfmtLogger(w)
+	collector := NewCollector(logger)
+	gatherers := setupGatherer(collector)
+	if val := testutil.CollectAndCount(collector); val != 23 {
+		t.Errorf("Unexpected collection count %d, expected 23", val)
+	}
+	if err := testutil.GatherAndCompare(gatherers, strings.NewReader(expected), "ondemand_exporter_collect_error",
+		"ondemand_passenger_instances", "ondemand_passenger_app_count", "ondemand_passenger_app_processes",
+		"ondemand_passenger_app_rss_bytes", "ondemand_passenger_app_real_memory_bytes", "ondemand_passenger_app_cpu_percent",
+		"ondemand_passenger_app_requests_total", "ondemand_passenger_app_average_runtime_seconds"); err != nil {
+		t.Errorf("unexpected collecting result:\n%s", err)
+	}
+}
+
 func setupGatherer(collector *Collector) prometheus.Gatherer {
 	registry := prometheus.NewRegistry()
 	registry.MustRegister(collector)
@@ -230,10 +297,10 @@ func setupGatherer(collector *Collector) prometheus.Gatherer {
 	return gatherers
 }
 
-func readFixture(name string) (string, error) {
+func readFixture(name string) string {
 	_, filename, _, _ := runtime.Caller(0)
 	dir := filepath.Dir(filename)
 	fixture := filepath.Join(dir, fmt.Sprintf("fixtures/%s", name))
-	fixtureData, err := ioutil.ReadFile(fixture)
-	return string(fixtureData), err
+	fixtureData, _ := ioutil.ReadFile(fixture)
+	return string(fixtureData)
 }
