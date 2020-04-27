@@ -1,3 +1,10 @@
+## 0.4.0 / 2020-04-27
+
+* Add passenger metrics
+* Rename --listen flag to --web.listen-address
+* Rename --apache-status  to --collector.apache.status-url
+* Fix pun process CPU metric
+
 ## 0.3.0 / 2020-03-05
 
 ### Changes
