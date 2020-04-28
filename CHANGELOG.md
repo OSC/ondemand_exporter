@@ -1,3 +1,7 @@
+## 0.5.0 / 2020-04-28
+
+* Update to Go 1.14 and update Prometheus client dependency
+
 ## 0.4.0 / 2020-04-27
 
 * Add passenger metrics
