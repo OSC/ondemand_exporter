@@ -45,13 +45,14 @@ Exporter metrics specific to status of the exporter
 
 ### sudo
 
-Ensure the user running `ondemand_exporter` can execute `/opt/ood/nginx_stage/sbin/nginx_stage nginx_list`.
+Ensure the user running `ondemand_exporter` can execute `/opt/ood/nginx_stage/sbin/nginx_stage nginx_list` and `/usr/sbin/ondemand-passenger-status`.
 The following sudo config assumes `ondemand_exporter` is running as `ondemand_exporter`.
 
 ```
 Defaults:ondemand_exporter !syslog
 Defaults:ondemand_exporter !requiretty
 ondemand_exporter ALL=(ALL) NOPASSWD:/opt/ood/nginx_stage/sbin/nginx_stage nginx_list
+ondemand_exporter ALL=(ALL) NOPASSWD:/usr/sbin/ondemand-passenger-status
 ```
 
 ### Apache mod_status
