@@ -1,3 +1,7 @@
+## 0.5.1 / 2020-05-12
+
+* Fix path for ondemand-passenger-status
+
 ## 0.5.0 / 2020-04-28
 
 * Update to Go 1.14 and update Prometheus client dependency
