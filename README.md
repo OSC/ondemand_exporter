@@ -38,8 +38,8 @@ Exporter metrics specific to status of the exporter
 
 ## Flags
 
-* `--listen` - Listen address, defaults to `:9301`
-* `--apache-status` - The URL to reach Apache's mod_status `/server-status` URL. If undefined the value will be determined by reading `ood_portal.yml`.
+* `--web.listen-address` - Listen address, defaults to `:9301`
+* `--collector.apache.status-url` - The URL to reach Apache's mod_status `/server-status` URL. If undefined the value will be determined by reading `ood_portal.yml`.
 
 ## Setup
 
