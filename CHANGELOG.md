@@ -1,3 +1,7 @@
+## 0.5.2 / 2020-06-04
+
+* Minor documentation fixes #13
+
 ## 0.5.1 / 2020-05-12
 
 * Fix path for ondemand-passenger-status
