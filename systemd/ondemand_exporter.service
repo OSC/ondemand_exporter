@@ -7,8 +7,9 @@ After=basic.target network.target
 User=ondemand_exporter
 Group=ondemand_exporter
 ExecStart=/usr/local/bin/ondemand_exporter \
---listen=:9301 \
---apache-status=http://localhost:80/server-status
+--web.listen-address=:9301 \
+--collector.apache.status-url=http://localhost:80/server-status
+
 
 ExecReload=/bin/kill -HUP $MAINPID
 KillMode=process
