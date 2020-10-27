@@ -82,7 +82,7 @@ foo
 bar`
 	expPuns := []string{"foo", "bar"}
 	defer func() { execCommand = exec.CommandContext }()
-	puns, err := getActivePuns(ctx)
+	puns, _, err := getActivePuns(ctx, log.NewNopLogger())
 	if err != nil {
 		t.Errorf("Unexpected error: %s", err.Error())
 		return
@@ -183,9 +183,9 @@ bar`
 		# TYPE ondemand_passenger_app_rss_bytes gauge
 		ondemand_passenger_app_rss_bytes{app="/var/www/ood/apps/sys/dashboard"} 202727424
 		ondemand_passenger_app_rss_bytes{app="/var/www/ood/apps/sys/files"} 56840192
-		# HELP ondemand_pun_cpu_percent Percent CPU of all PUNs
-		# TYPE ondemand_pun_cpu_percent gauge
-		ondemand_pun_cpu_percent 0
+		# HELP ondemand_pun_cpu_time CPU time of all PUNs
+		# TYPE ondemand_pun_cpu_time gauge
+		ondemand_pun_cpu_time 0
 		# HELP ondemand_pun_memory Memory used by all PUNs
 		# TYPE ondemand_pun_memory gauge
 		ondemand_pun_memory{type="rss"} 0
@@ -206,16 +206,16 @@ bar`
 		# TYPE ondemand_websocket_connections gauge
 		ondemand_websocket_connections 5
 	`
-	w := log.NewSyncWriter(os.Stderr)
-	logger := log.NewLogfmtLogger(w)
-	collector := NewCollector(logger)
+	//w := log.NewSyncWriter(os.Stderr)
+	//logger := log.NewLogfmtLogger(w)
+	collector := NewCollector(log.NewNopLogger())
 	gatherers := setupGatherer(collector)
 	if val := testutil.CollectAndCount(collector); val != 37 {
 		t.Errorf("Unexpected collection count %d, expected 37", val)
 	}
 	if err := testutil.GatherAndCompare(gatherers, strings.NewReader(expected), "ondemand_active_puns", "ondemand_exporter_collect_error",
 		"ondemand_client_connections", "ondemand_unique_client_connections", "ondemand_unique_websocket_clients", "ondemand_websocket_connections",
-		"ondemand_node_apps", "ondemand_rack_apps", "ondemand_pun_cpu_percent", "ondemand_pun_memory", "ondemand_pun_memory_percent",
+		"ondemand_node_apps", "ondemand_rack_apps", "ondemand_pun_cpu_time", "ondemand_pun_memory", "ondemand_pun_memory_percent",
 		"ondemand_passenger_instances", "ondemand_passenger_app_count", "ondemand_passenger_app_processes",
 		"ondemand_passenger_app_rss_bytes", "ondemand_passenger_app_real_memory_bytes", "ondemand_passenger_app_cpu_percent",
 		"ondemand_passenger_app_requests_total", "ondemand_passenger_app_average_runtime_seconds"); err != nil {
@@ -275,9 +275,7 @@ bar`
 		# TYPE ondemand_passenger_instances gauge
 		ondemand_passenger_instances 0
 	`
-	w := log.NewSyncWriter(os.Stderr)
-	logger := log.NewLogfmtLogger(w)
-	collector := NewCollector(logger)
+	collector := NewCollector(log.NewNopLogger())
 	gatherers := setupGatherer(collector)
 	if val := testutil.CollectAndCount(collector); val != 23 {
 		t.Errorf("Unexpected collection count %d, expected 23", val)

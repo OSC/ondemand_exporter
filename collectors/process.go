@@ -23,60 +23,76 @@
 package collectors
 
 import (
-	"fmt"
 	"strings"
 	"time"
 
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/shirou/gopsutil/process"
+	"github.com/prometheus/procfs"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 
 var (
 	processTimeout = kingpin.Flag("collector.process.timeout", "Timeout for process collection").Default("10").Int()
+	procFS         = "/proc"
 )
 
 type ProcessCollector struct {
 	RackApps         *prometheus.Desc
 	NodeApps         *prometheus.Desc
-	PunCpuPercent    *prometheus.Desc
+	PunCpuTime       *prometheus.Desc
 	PunMemory        *prometheus.Desc
 	PunMemoryPercent *prometheus.Desc
 	logger           log.Logger
 }
 
 type ProcessMetrics struct {
-	RackApps         int
-	NodeApps         int
-	PunCpuPercent    float64
-	PunMemoryRSS     uint64
-	PunMemoryVMS     uint64
-	PunMemoryPercent float32
+	RackApps         float64
+	NodeApps         float64
+	PunCpuTime       float64
+	PunMemoryRSS     float64
+	PunMemoryVMS     float64
+	PunMemoryPercent float64
 }
 
 func getProcessMetrics(puns []string, logger log.Logger) (ProcessMetrics, error) {
 	var metrics ProcessMetrics
-	rackApps := 0
-	nodeApps := 0
-	var pun_cpu_percent float64
-	var pun_memory_rss uint64
-	var pun_memory_vms uint64
-	var pun_memory_percent float32
-	procs, err := process.Processes()
+	var rackApps, nodeApps float64
+	var pun_cpu_time float64
+	var pun_memory_rss, pun_memory_vms float64
+	procfs, err := procfs.NewFS(procFS)
 	if err != nil {
 		return ProcessMetrics{}, err
 	}
-	level.Debug(logger).Log("msg", "Getting process for PUNS", "puns", puns)
+	meminfo, err := procfs.Meminfo()
+	if err != nil {
+		return ProcessMetrics{}, err
+	}
+	procs, err := procfs.AllProcs()
+	if err != nil {
+		return ProcessMetrics{}, err
+	}
+	level.Debug(logger).Log("msg", "Getting process for PUNS", "puns", strings.Join(puns, ","))
 	for _, proc := range procs {
-		user, _ := proc.Username()
-		if user == "root" {
+		procCmdLine, _ := proc.CmdLine()
+		cmdline := strings.Join(procCmdLine, " ")
+		status, err := proc.NewStatus()
+		if err != nil {
+			level.Debug(logger).Log("msg", "Unable to get process status", "pid", proc.PID, "cmdline", cmdline)
 			continue
 		}
-		cmdline, _ := proc.Cmdline()
-		if punProc := sliceContains(puns, user); !punProc {
-			//level.Debug(logger).Log("msg", "Skip proc not owned by PUN", "user", user, "cmdline", cmdline)
+		uid := status.UIDs[0]
+		stat, err := proc.Stat()
+		if err != nil {
+			level.Debug(logger).Log("msg", "Unable to get PUN proc stat", "pid", proc.PID, "uid", uid, "cmdline", cmdline)
+			continue
+		}
+		if uid == "0" {
+			continue
+		}
+		if !sliceContains(puns, uid) {
+			level.Debug(logger).Log("msg", "Skip PID that does not belong to PUN", "pid", proc.PID, "uid", uid, "cmdline", cmdline)
 			continue
 		}
 		if strings.Contains(cmdline, "rack-loader.rb") {
@@ -84,30 +100,18 @@ func getProcessMetrics(puns []string, logger log.Logger) (ProcessMetrics, error)
 		} else if strings.Contains(cmdline, "Passenger NodeApp") {
 			nodeApps++
 		}
-		cpupercent, _ := proc.CPUPercent()
-		pun_cpu_percent = pun_cpu_percent + cpupercent
-		level.Debug(logger).Log("msg", "PUN", "user", user, "cmd", cmdline, "cpupercent", cpupercent, "total", pun_cpu_percent)
-		meminfo, err := proc.MemoryInfo()
-		if err == nil {
-			memrss := meminfo.RSS
-			memvms := meminfo.VMS
-			pun_memory_rss = pun_memory_rss + memrss
-			pun_memory_vms = pun_memory_vms + memvms
-		}
-		mempercent, err := proc.MemoryPercent()
-		if err == nil {
-			pun_memory_percent = pun_memory_percent + mempercent
-		}
+		level.Debug(logger).Log("msg", "Collecting PUN proc stat", "pid", proc.PID, "uid", uid,
+			"cputime", stat.CPUTime(), "rss", stat.ResidentMemory(), "vms", stat.VirtualMemory())
+		pun_cpu_time = pun_cpu_time + stat.CPUTime()
+		pun_memory_rss = pun_memory_rss + float64(stat.ResidentMemory())
+		pun_memory_vms = pun_memory_vms + float64(stat.VirtualMemory())
 	}
-	level.Debug(logger).Log("msg", "APPS", "rack", rackApps, "node", nodeApps)
-	newcpupercent := pun_cpu_percent / float64(cores())
-	level.Debug(logger).Log("msg", fmt.Sprintf("Cores %d New CPU percent: %f", cores(), newcpupercent))
 	metrics.RackApps = rackApps
 	metrics.NodeApps = nodeApps
-	metrics.PunCpuPercent = newcpupercent
+	metrics.PunCpuTime = pun_cpu_time
 	metrics.PunMemoryRSS = pun_memory_rss
 	metrics.PunMemoryVMS = pun_memory_vms
-	metrics.PunMemoryPercent = pun_memory_percent
+	metrics.PunMemoryPercent = 100 * (float64(pun_memory_rss) / (float64(meminfo.MemTotal) * 1024.0))
 	return metrics, nil
 }
 
@@ -116,7 +120,7 @@ func NewProcessCollector(logger log.Logger) *ProcessCollector {
 		logger:           logger,
 		RackApps:         prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "rack_apps"), "Number of running Rack apps", nil, nil),
 		NodeApps:         prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "node_apps"), "Number of running NodeJS apps", nil, nil),
-		PunCpuPercent:    prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "pun_cpu_percent"), "Percent CPU of all PUNs", nil, nil),
+		PunCpuTime:       prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "pun_cpu_time"), "CPU time of all PUNs", nil, nil),
 		PunMemory:        prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "pun_memory"), "Memory used by all PUNs", []string{"type"}, nil),
 		PunMemoryPercent: prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "pun_memory_percent"), "Percent memory of all PUNs", nil, nil),
 	}
@@ -150,12 +154,12 @@ func (c *ProcessCollector) collect(puns []string, ch chan<- prometheus.Metric) e
 	if err != nil {
 		return err
 	}
-	ch <- prometheus.MustNewConstMetric(c.RackApps, prometheus.GaugeValue, float64(processMetrics.RackApps))
-	ch <- prometheus.MustNewConstMetric(c.NodeApps, prometheus.GaugeValue, float64(processMetrics.NodeApps))
-	ch <- prometheus.MustNewConstMetric(c.PunCpuPercent, prometheus.GaugeValue, float64(processMetrics.PunCpuPercent))
-	ch <- prometheus.MustNewConstMetric(c.PunMemory, prometheus.GaugeValue, float64(processMetrics.PunMemoryRSS), "rss")
-	ch <- prometheus.MustNewConstMetric(c.PunMemory, prometheus.GaugeValue, float64(processMetrics.PunMemoryVMS), "vms")
-	ch <- prometheus.MustNewConstMetric(c.PunMemoryPercent, prometheus.GaugeValue, float64(processMetrics.PunMemoryPercent))
+	ch <- prometheus.MustNewConstMetric(c.RackApps, prometheus.GaugeValue, processMetrics.RackApps)
+	ch <- prometheus.MustNewConstMetric(c.NodeApps, prometheus.GaugeValue, processMetrics.NodeApps)
+	ch <- prometheus.MustNewConstMetric(c.PunCpuTime, prometheus.GaugeValue, processMetrics.PunCpuTime)
+	ch <- prometheus.MustNewConstMetric(c.PunMemory, prometheus.GaugeValue, processMetrics.PunMemoryRSS, "rss")
+	ch <- prometheus.MustNewConstMetric(c.PunMemory, prometheus.GaugeValue, processMetrics.PunMemoryVMS, "vms")
+	ch <- prometheus.MustNewConstMetric(c.PunMemoryPercent, prometheus.GaugeValue, processMetrics.PunMemoryPercent)
 	ch <- prometheus.MustNewConstMetric(collectDuration, prometheus.GaugeValue, time.Since(collectTime).Seconds(), "process")
 	return nil
 }

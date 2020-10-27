@@ -26,6 +26,7 @@ import (
 	"context"
 	"os"
 	"os/exec"
+	"os/user"
 	"runtime"
 	"strings"
 	"sync"
@@ -96,11 +97,12 @@ func getCores() int {
 	return runtime.NumCPU()
 }
 
-func getActivePuns(ctx context.Context) ([]string, error) {
+func getActivePuns(ctx context.Context, logger log.Logger) ([]string, []string, error) {
 	var puns []string
+	var punUIDs []string
 	out, err := execCommand(ctx, "sudo", "/opt/ood/nginx_stage/sbin/nginx_stage", "nginx_list").Output()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	lines := strings.Split(string(out), "\n")
 	for _, l := range lines {
@@ -108,8 +110,14 @@ func getActivePuns(ctx context.Context) ([]string, error) {
 			continue
 		}
 		puns = append(puns, l)
+		user, err := user.Lookup(l)
+		if err != nil {
+			level.Error(logger).Log("msg", "Unable to lookup PUN username", "pun", l)
+			continue
+		}
+		punUIDs = append(punUIDs, user.Uid)
 	}
-	return puns, nil
+	return puns, punUIDs, nil
 }
 
 func NewCollector(logger log.Logger) *Collector {
@@ -124,7 +132,7 @@ func (c *Collector) collect(ch chan<- prometheus.Metric) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(*punsTimeout)*time.Second)
 	defer cancel()
 	collectTime := time.Now()
-	puns, err := getActivePuns(ctx)
+	puns, punUIDs, err := getActivePuns(ctx, c.logger)
 	if ctx.Err() == context.DeadlineExceeded {
 		ch <- prometheus.MustNewConstMetric(collecTimeout, prometheus.GaugeValue, 1, "puns")
 		level.Error(c.logger).Log("msg", "Timeout collecting PUNs")
@@ -153,7 +161,7 @@ func (c *Collector) collect(ch chan<- prometheus.Metric) error {
 			ch <- prometheus.MustNewConstMetric(collecError, prometheus.GaugeValue, 0, "process")
 		}
 		wg.Done()
-	}(puns)
+	}(punUIDs)
 
 	go func() {
 		a := NewApacheCollector(log.With(c.logger, "collector", "apache"))
