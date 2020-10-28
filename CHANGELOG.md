@@ -1,3 +1,9 @@
+## 0.6.0 / 2020-10-28
+
+* Use Prometheus procfs module for process collection
+* Replace ondemand_pun_cpu_percent with ondemand_pun_cpu_time
+* Update to Go 1.15 and update dependencies
+
 ## 0.5.2 / 2020-06-04
 
 * Minor documentation fixes #13
