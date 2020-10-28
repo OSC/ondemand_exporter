@@ -210,7 +210,9 @@ bar`
 	//logger := log.NewLogfmtLogger(w)
 	collector := NewCollector(log.NewNopLogger())
 	gatherers := setupGatherer(collector)
-	if val := testutil.CollectAndCount(collector); val != 37 {
+	if val, err := testutil.GatherAndCount(gatherers); err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	} else if val != 37 {
 		t.Errorf("Unexpected collection count %d, expected 37", val)
 	}
 	if err := testutil.GatherAndCompare(gatherers, strings.NewReader(expected), "ondemand_active_puns", "ondemand_exporter_collect_error",
@@ -277,7 +279,9 @@ bar`
 	`
 	collector := NewCollector(log.NewNopLogger())
 	gatherers := setupGatherer(collector)
-	if val := testutil.CollectAndCount(collector); val != 23 {
+	if val, err := testutil.GatherAndCount(gatherers); err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	} else if val != 23 {
 		t.Errorf("Unexpected collection count %d, expected 23", val)
 	}
 	if err := testutil.GatherAndCompare(gatherers, strings.NewReader(expected), "ondemand_exporter_collect_error",
