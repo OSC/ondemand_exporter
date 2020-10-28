@@ -103,7 +103,7 @@ bar`
 	defer func() { execCommand = exec.CommandContext }()
 	_, filename, _, _ := runtime.Caller(0)
 	dir := filepath.Dir(filename)
-	fixture := filepath.Join(dir, "fixtures/status")
+	fixture := filepath.Join(dir, "../fixtures/status")
 	fixtureData, err := ioutil.ReadFile(fixture)
 	if err != nil {
 		t.Fatalf("Error loading fixture data: %s", err.Error())
@@ -234,7 +234,7 @@ bar`
 	defer func() { execCommand = exec.CommandContext }()
 	_, filename, _, _ := runtime.Caller(0)
 	dir := filepath.Dir(filename)
-	fixture := filepath.Join(dir, "fixtures/status")
+	fixture := filepath.Join(dir, "../fixtures/status")
 	fixtureData, err := ioutil.ReadFile(fixture)
 	if err != nil {
 		t.Fatalf("Error loading fixture data: %s", err.Error())
@@ -298,7 +298,7 @@ func setupGatherer(collector *Collector) prometheus.Gatherer {
 func readFixture(name string) string {
 	_, filename, _, _ := runtime.Caller(0)
 	dir := filepath.Dir(filename)
-	fixture := filepath.Join(dir, fmt.Sprintf("fixtures/%s", name))
+	fixture := filepath.Join(dir, fmt.Sprintf("../fixtures/%s", name))
 	fixtureData, _ := ioutil.ReadFile(fixture)
 	return string(fixtureData)
 }
