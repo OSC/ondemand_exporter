@@ -18,7 +18,7 @@ All metrics are accessible via the `/metrics` location.
 * `ondemand_unique_websocket_clients` - Web socket connections report by Apache mod_status unique by client
 * `ondemand_client_connections` - Number of client connections reported by Apache mod_status
 * `ondemand_unique_client_connections` - Number of unique client connects reported by Apache mod_status
-* `ondemand_pun_cpu_percent` - CPU percent of all PUNs
+* `ondemand_pun_cpu_time` - CPU time of all PUNs in seconds
 * `ondemand_pun_memory_bytes{type="rss|vms"}` - Memory RSS or virtual memory of all PUNs
 * `ondemand_pun_memory_percent` - Percent memory used by all PUNs
 * `ondemand_passenger_instances` - Number of Passenger instances

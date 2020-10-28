@@ -69,7 +69,7 @@ port: 443`
 func TestGetApacheMetrics(t *testing.T) {
 	_, filename, _, _ := runtime.Caller(0)
 	dir := filepath.Dir(filename)
-	fixture := filepath.Join(dir, "fixtures/status")
+	fixture := filepath.Join(dir, "../fixtures/status")
 	fixtureData, err := ioutil.ReadFile(fixture)
 	if err != nil {
 		t.Fatalf("Error loading fixture data: %s", err.Error())
@@ -100,7 +100,7 @@ func TestGetApacheMetrics(t *testing.T) {
 func TestGetApacheMetricsThreadMPM(t *testing.T) {
 	_, filename, _, _ := runtime.Caller(0)
 	dir := filepath.Dir(filename)
-	fixture := filepath.Join(dir, "fixtures/status2")
+	fixture := filepath.Join(dir, "../fixtures/status2")
 	fixtureData, err := ioutil.ReadFile(fixture)
 	if err != nil {
 		t.Fatalf("Error loading fixture data: %s", err.Error())
