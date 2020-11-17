@@ -1,3 +1,7 @@
+## 0.7.0 / 2020-11-17
+
+* [ENHANCEMENT] Make source install easier
+
 ## 0.6.2 / 2020-11-17
 
 * [BUGFIX] Fix Passenger collector to PUN UIDs when falling back to PID lookup
