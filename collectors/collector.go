@@ -117,6 +117,7 @@ func getActivePuns(ctx context.Context, logger log.Logger) ([]string, []string, 
 		}
 		punUIDs = append(punUIDs, user.Uid)
 	}
+	level.Debug(logger).Log("msg", "Found PUNs", "puns", strings.Join(puns, ","), "punUIDs", strings.Join(punUIDs, ","))
 	return puns, punUIDs, nil
 }
 
@@ -185,7 +186,7 @@ func (c *Collector) collect(ch chan<- prometheus.Metric) error {
 			ch <- prometheus.MustNewConstMetric(collecError, prometheus.GaugeValue, 0, "passenger")
 		}
 		wg.Done()
-	}(puns)
+	}(punUIDs)
 	wg.Wait()
 	return nil
 }

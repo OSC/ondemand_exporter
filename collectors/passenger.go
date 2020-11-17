@@ -214,7 +214,8 @@ func (c *PassengerCollector) getInstancesByPID(puns []string) ([]string, error) 
 			continue
 		}
 		if !sliceContains(puns, uid) {
-			level.Debug(c.logger).Log("msg", "Skip PID that does not belong to PUN", "pid", proc.PID, "uid", uid, "cmdline", cmdline)
+			level.Debug(c.logger).Log("msg", "Skip PID that does not belong to PUN",
+				"puns", strings.Join(puns, ","), "pid", proc.PID, "uid", uid, "cmdline", cmdline)
 			continue
 		}
 		if cmdline != "Passenger watchdog" {
