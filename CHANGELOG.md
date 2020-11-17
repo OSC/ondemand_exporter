@@ -1,3 +1,7 @@
+## 0.6.2 / 2020-11-17
+
+* [BUGFIX] Fix Passenger collector to PUN UIDs when falling back to PID lookup
+
 ## 0.6.1 / 2020-11-17
 
 * [BUGFIX] Fix issue where 1 PUN would result in no passenger metrics
