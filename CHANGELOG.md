@@ -1,3 +1,7 @@
+## 0.6.1 / 2020-11-17
+
+* [BUGFIX] Fix issue where 1 PUN would result in no passenger metrics
+
 ## 0.6.0 / 2020-10-28
 
 * Use Prometheus procfs module for process collection
