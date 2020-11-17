@@ -23,42 +23,55 @@
 package collectors
 
 import (
-	"fmt"
+	"context"
+	//"os"
 	"path/filepath"
 	"runtime"
 	"testing"
+	"time"
 
 	"github.com/go-kit/kit/log"
 )
 
-func TestGetProcessMetrics(t *testing.T) {
-	_, filename, _, _ := runtime.Caller(0)
-	dir := filepath.Dir(filename)
-	procFS = filepath.Join(dir, "../fixtures/proc")
+func TestGetInstances(t *testing.T) {
 	//w := log.NewSyncWriter(os.Stderr)
 	//logger := log.NewLogfmtLogger(w)
 	logger := log.NewNopLogger()
-	m, err := getProcessMetrics([]string{"32666", "20821"}, logger)
+	passengerStatusExec = func(ctx context.Context, instance string, logger log.Logger) (string, error) {
+		return readFixture("passenger-status.out"), nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	collector := NewPassengerCollector(logger)
+	m, err := collector.getInstances([]string{"32666", "20821"}, ctx)
 	if err != nil {
 		t.Errorf("Unexpected error: %s", err.Error())
 		return
 	}
-	if val := m.RackApps; val != 4 {
-		t.Errorf("Unexpected value for RackApps, expected 4, got %v", val)
+	if len(m) != 2 {
+		t.Errorf("Unexpected count of instances: %d", len(m))
 	}
-	if val := m.NodeApps; val != 1 {
-		t.Errorf("Unexpected value for NodeApps, expected 1, got %v", val)
+}
+
+func TestGetInstancesOne(t *testing.T) {
+	_, filename, _, _ := runtime.Caller(0)
+	dir := filepath.Dir(filename)
+	procFS = filepath.Join(dir, "../fixtures/proc")
+	passengerStatusExec = func(ctx context.Context, instance string, logger log.Logger) (string, error) {
+		return readFixture("passenger-status-57564.out"), nil
 	}
-	if val := fmt.Sprintf("%.2f", m.PunCpuTime); val != "9.95" {
-		t.Errorf("Unexpected value for PunCpuTime, expected 9.95, got %v", val)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	//w := log.NewSyncWriter(os.Stderr)
+	//logger := log.NewLogfmtLogger(w)
+	logger := log.NewNopLogger()
+	collector := NewPassengerCollector(logger)
+	m, err := collector.getInstances([]string{"32666"}, ctx)
+	if err != nil {
+		t.Errorf("Unexpected error: %s", err.Error())
+		return
 	}
-	if val := m.PunMemoryRSS; val != 338735104 {
-		t.Errorf("Unexpected value for PunMemoryRSS, expected 338735104, got %v", val)
-	}
-	if val := m.PunMemoryVMS; val != 4490481664 {
-		t.Errorf("Unexpected value for PunMemoryVMS, expected 4490481664, got %v", val)
-	}
-	if val := fmt.Sprintf("%.2f", m.PunMemoryPercent); val != "2.04" {
-		t.Errorf("Unexpected value for PunMemoryPercent, expected 2.04, got %v", val)
+	if len(m) != 1 {
+		t.Errorf("Unexpected count of instances: %d", len(m))
 	}
 }

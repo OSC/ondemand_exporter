@@ -27,6 +27,7 @@ import (
 	"context"
 	"encoding/xml"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -34,6 +35,7 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/procfs"
 	"golang.org/x/net/html/charset"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
@@ -103,7 +105,7 @@ func (c *PassengerCollector) collect(puns []string, ch chan<- prometheus.Metric)
 	collectTime := time.Now()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(*passengerTimeout)*time.Second)
 	defer cancel()
-	instances, err := c.getInstances(ctx)
+	instances, err := c.getInstances(puns, ctx)
 	if err != nil {
 		return err
 	}
@@ -158,13 +160,20 @@ func (c *PassengerCollector) collect(puns []string, ch chan<- prometheus.Metric)
 	return nil
 }
 
-func (c *PassengerCollector) getInstances(ctx context.Context) ([]string, error) {
+func (c *PassengerCollector) getInstances(puns []string, ctx context.Context) ([]string, error) {
 	out, err := passengerStatusExec(ctx, "", c.logger)
 	if err != nil {
 		return nil, err
 	}
-	lines := strings.Split(out, "\n")
 	var instances []string
+	// Single instance running, collect PID
+	if strings.HasPrefix(out, "<?xml") {
+		instances, err = c.getInstancesByPID(puns)
+		if err != nil {
+			return nil, err
+		}
+	}
+	lines := strings.Split(out, "\n")
 	var pastHeader bool
 	for _, l := range lines {
 		if strings.HasPrefix(l, "---") {
@@ -177,9 +186,44 @@ func (c *PassengerCollector) getInstances(ctx context.Context) ([]string, error)
 		if len(items) != 4 {
 			continue
 		}
-		instances = append(instances, items[0])
+		instances = append(instances, items[1])
 	}
 	return instances, nil
+}
+
+func (c *PassengerCollector) getInstancesByPID(puns []string) ([]string, error) {
+	var pids []string
+	procfs, err := procfs.NewFS(procFS)
+	if err != nil {
+		return nil, err
+	}
+	procs, err := procfs.AllProcs()
+	if err != nil {
+		return nil, err
+	}
+	for _, proc := range procs {
+		procCmdLine, _ := proc.CmdLine()
+		cmdline := strings.Join(procCmdLine, " ")
+		status, err := proc.NewStatus()
+		if err != nil {
+			level.Debug(c.logger).Log("msg", "Unable to get process status", "pid", proc.PID, "cmdline", cmdline)
+			continue
+		}
+		uid := status.UIDs[0]
+		if uid == "0" {
+			continue
+		}
+		if !sliceContains(puns, uid) {
+			level.Debug(c.logger).Log("msg", "Skip PID that does not belong to PUN", "pid", proc.PID, "uid", uid, "cmdline", cmdline)
+			continue
+		}
+		if cmdline != "Passenger watchdog" {
+			level.Debug(c.logger).Log("msg", "Skip PID that is not Passenger watchdog", "pid", proc.PID, "uid", uid, "cmdline", cmdline)
+			continue
+		}
+		pids = append(pids, strconv.Itoa(proc.PID))
+	}
+	return pids, nil
 }
 
 func (c *PassengerCollector) getInstancesMetrics(ctx context.Context, instances []string) ([]PassengerAppMetrics, []error) {
@@ -253,7 +297,7 @@ func passengerStatus(ctx context.Context, instance string, logger log.Logger) (s
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	if instance != "" {
-		cmds = []string{*passengerStatusPath, "--show=xml", instance}
+		cmds = []string{*passengerStatusPath, "--show=xml", "--pid-identifier", instance}
 	} else {
 		cmds = []string{*passengerStatusPath, "--show=xml"}
 	}
