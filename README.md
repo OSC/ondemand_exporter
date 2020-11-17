@@ -46,35 +46,19 @@ Exporter metrics specific to status of the exporter
 ### sudo
 
 Ensure the user running `ondemand_exporter` can execute `/opt/ood/nginx_stage/sbin/nginx_stage nginx_list` and `/usr/sbin/ondemand-passenger-status`.
-The following sudo config assumes `ondemand_exporter` is running as `ondemand_exporter`.
+
+An example of this file exists in [files/sudo](files/sudo), and this file could be copied using something like the following:
 
 ```
-Defaults:ondemand_exporter !syslog
-Defaults:ondemand_exporter !requiretty
-ondemand_exporter ALL=(ALL) NOPASSWD:/opt/ood/nginx_stage/sbin/nginx_stage nginx_list
-ondemand_exporter ALL=(ALL) NOPASSWD:/usr/sbin/ondemand-passenger-status
+install -m 0440 -o root -g root files/sudo /etc/sudoers.d/ondemand_exporter
 ```
 
 ### Apache mod_status
 
 Must also ensure Apache `mod_status` is loaded and configured.
-The below example should have `SERVERNAME` replaced with OnDemand configured `servername` defined in `/etc/ood/config/ood_portal.yml`.
+A complete example of using a dedicated mod_status port for `localhost` is provided in [files/apache.conf](files/apache.conf)
 
-/opt/rh/httpd24/root/etc/httpd/conf.modules.d/status.conf:
-```
-LoadModule status_module modules/mod_status.so
-<Location /server-status>
-    SetHandler server-status
-    Require ip 127.0.0.1 ::1
-    Require host SERVERNAME
-</Location>
-ExtendedStatus On
-
-<IfModule mod_proxy.c>
-    # Show Proxy LoadBalancer status in mod_status
-    ProxyStatus On
-</IfModule>
-```
+This file would be installed to `/opt/rh/httpd24/root/etc/httpd/conf.d/ondemand_exporter.conf` for systems using SCL.
 
 If the `--apache-status` flag is not used the server name used to query mod_status is read from `/etc/ood/config/ood_portal.yml` so ensure the user running `ondemand_exporter` can read this file.
 
@@ -91,7 +75,7 @@ If building from source, build `ondemand_exporter` and install.
 
 ```
 make build
-cp ondemand_exporter /usr/local/bin/ondemand_exporter
+cp ondemand_exporter /usr/bin/ondemand_exporter
 ```
 
 If using pre-compiled binaries, download the necessary asset and install the binari.
@@ -110,7 +94,7 @@ Enable Apache mod_status, see [Apache mod_status](#apache-mod_status)
 Add systemd unit file and start service
 
 ```
-cp systemd/ondemand_exporter.service /etc/systemd/system/ondemand_exporter.service
+cp files/ondemand_exporter.service /etc/systemd/system/ondemand_exporter.service
 systemctl daemon-reload
 systemctl start ondemand_exporter
 ```

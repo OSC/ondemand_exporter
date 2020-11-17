@@ -19,6 +19,7 @@ tarball:
     files:
         - LICENSE
         - CHANGELOG.md
+        - files
 crossbuild:
     platforms:
         - linux/amd64
