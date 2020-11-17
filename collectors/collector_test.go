@@ -206,9 +206,10 @@ bar`
 		# TYPE ondemand_websocket_connections gauge
 		ondemand_websocket_connections 5
 	`
-	//w := log.NewSyncWriter(os.Stderr)
-	//logger := log.NewLogfmtLogger(w)
-	collector := NewCollector(log.NewNopLogger())
+	w := log.NewSyncWriter(os.Stderr)
+	logger := log.NewLogfmtLogger(w)
+	//logger := log.NewNopLogger()
+	collector := NewCollector(logger)
 	gatherers := setupGatherer(collector)
 	if val, err := testutil.GatherAndCount(gatherers); err != nil {
 		t.Errorf("Unexpected error: %v", err)

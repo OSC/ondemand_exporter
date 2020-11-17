@@ -2,7 +2,7 @@
 Directory: fixtures
 Mode: 775
 # ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-Path: fixtures/passenger-status-4PFqSPuH.out
+Path: fixtures/passenger-status-57564.out
 Lines: 171
 <?xml version="1.0" encoding="iso8859-1"?>
 <info version="3">
@@ -177,7 +177,7 @@ Lines: 171
 </info>
 Mode: 664
 # ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-Path: fixtures/passenger-status-YxgQTchg.out
+Path: fixtures/passenger-status-97758.out
 Lines: 91
 <?xml version="1.0" encoding="iso8859-1"?>
 <info version="3">
