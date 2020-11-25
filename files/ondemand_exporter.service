@@ -7,11 +7,9 @@ After=basic.target network.target
 User=ondemand_exporter
 Group=ondemand_exporter
 SyslogIdentifier=ondemand_exporter
-Environment="PORT=9301"
-Environment="APACHE_PORT=81"
-ExecStart=/usr/bin/ondemand_exporter \
---web.listen-address=:${PORT} \
---collector.apache.status-url=http://localhost:${APACHE_PORT}/server-status
+Environment="LISTEN_ADDRESS=:9301"
+Environment="APACHE_STATUS_URL=http://localhost:81/server-status"
+ExecStart=/usr/bin/ondemand_exporter
 ExecReload=/bin/kill -HUP $MAINPID
 KillMode=process
 Restart=always

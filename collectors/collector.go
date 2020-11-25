@@ -43,7 +43,7 @@ const (
 )
 
 var (
-	punsTimeout     = kingpin.Flag("collector.puns.timeout", "Timeout for collecting PUNs").Default("10").Int()
+	punsTimeout     = kingpin.Flag("collector.puns.timeout", "Timeout for collecting PUNs").Default("10").Envar("PUNS_TIMEOUT").Int()
 	oodPortalPath   = "/etc/ood/config/ood_portal.yml"
 	execCommand     = exec.CommandContext
 	timeNow         = getTimeNow

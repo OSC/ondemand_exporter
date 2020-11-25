@@ -40,8 +40,8 @@ import (
 )
 
 var (
-	apacheStatusURL = kingpin.Flag("collector.apache.status-url", "URL to collect Apache status from").Default("").String()
-	apacheTimeout   = kingpin.Flag("collector.apache.timeout", "Timeout for collecting Apache metrics").Default("10").Int()
+	apacheStatusURL = kingpin.Flag("collector.apache.status-url", "URL to collect Apache status from").Default("").Envar("APACHE_STATUS_URL").String()
+	apacheTimeout   = kingpin.Flag("collector.apache.timeout", "Timeout for collecting Apache metrics").Default("10").Envar("APACHE_TIMEOUT").Int()
 	osHostname      = os.Hostname
 	fqdn            = "localhost"
 )
