@@ -1,3 +1,7 @@
+## 0.8.0 / 2020-11-25
+
+* [ENHANCEMENT] Allow flags to be defined using environment variables
+
 ## 0.7.0 / 2020-11-17
 
 * [ENHANCEMENT] Make source install easier
