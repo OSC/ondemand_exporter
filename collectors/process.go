@@ -34,7 +34,7 @@ import (
 )
 
 var (
-	processTimeout = kingpin.Flag("collector.process.timeout", "Timeout for process collection").Default("10").Int()
+	processTimeout = kingpin.Flag("collector.process.timeout", "Timeout for process collection").Default("10").Envar("PROCESS_TIMEOUT").Int()
 	procFS         = "/proc"
 )
 

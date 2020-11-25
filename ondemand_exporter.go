@@ -38,7 +38,7 @@ import (
 )
 
 var (
-	listenAddr = kingpin.Flag("web.listen-address", "Address to listen on for web interface and telemetry.").Default(":9301").String()
+	listenAddr = kingpin.Flag("web.listen-address", "Address to listen on for web interface and telemetry.").Default(":9301").Envar("LISTEN_ADDRESS").String()
 )
 
 func metricsHandler(logger log.Logger) http.HandlerFunc {

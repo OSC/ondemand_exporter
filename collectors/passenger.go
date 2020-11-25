@@ -45,8 +45,8 @@ const (
 )
 
 var (
-	passengerTimeout            = kingpin.Flag("collector.passenger.timeout", "Timeout for collecting Passenger metrics").Default("30").Int()
-	passengerStatusPath         = kingpin.Flag("path.passenger-status", "Path to OnDemand passenger-status").Default("/usr/sbin/ondemand-passenger-status").String()
+	passengerTimeout            = kingpin.Flag("collector.passenger.timeout", "Timeout for collecting Passenger metrics").Default("30").Envar("PASSENGER_TIMEOUT").Int()
+	passengerStatusPath         = kingpin.Flag("path.passenger-status", "Path to OnDemand passenger-status").Default("/usr/sbin/ondemand-passenger-status").Envar("PASSENGER_STATUS").String()
 	passengerStatusExec         = passengerStatus
 	passengerStatusExecInstance = passengerStatus
 	passengerMetricMutex        = sync.RWMutex{}
