@@ -1,3 +1,7 @@
+## 0.8.1 / 2021-11-03
+
+* [BUGFIX] Fix parsing of no instances with latest Passenger
+
 ## 0.8.0 / 2020-11-25
 
 * [ENHANCEMENT] Allow flags to be defined using environment variables
