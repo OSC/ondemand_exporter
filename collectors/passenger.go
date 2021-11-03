@@ -311,7 +311,7 @@ func passengerStatus(ctx context.Context, instance string, logger log.Logger) (s
 	} else if err != nil {
 		if strings.Contains(stdout.String(), "It appears that multiple") {
 			return stdout.String(), nil
-		} else if strings.Contains(stderr.String(), "Phusion Passenger doesn't seem to be running") {
+		} else if strings.Contains(stderr.String(), "doesn't seem to be running") {
 			return stdout.String(), nil
 		}
 		level.Error(logger).Log("msg", fmt.Sprintf("Error executing %s", *passengerStatusPath), "err", stderr.String(), "out", stdout.String())
