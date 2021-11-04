@@ -8,7 +8,7 @@
 %endif
 
 Name:       ondemand_exporter
-Version:    0.8.0
+Version:    %{package_version}
 Release:    1%{?dist}
 Summary:    OnDemand Prometheus Exporter
 
