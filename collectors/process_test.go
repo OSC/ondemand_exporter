@@ -28,7 +28,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/go-kit/kit/log"
+	"github.com/go-kit/log"
 )
 
 func TestGetProcessMetrics(t *testing.T) {
