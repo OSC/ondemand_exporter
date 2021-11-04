@@ -2,15 +2,15 @@
 version: 2.1
 
 orbs:
-  prometheus: prometheus/prometheus@0.4.0
-  codecov: codecov/codecov@1.0.5
+  prometheus: prometheus/prometheus@0.11.0
+  codecov: codecov/codecov@3.2.0
 
 executors:
   # Whenever the Go version is updated here, .promu.yml should
   # also be updated.
   golang:
     docker:
-    - image: circleci/golang:1.15
+    - image: circleci/golang:1.17
 
 jobs:
   test:
@@ -25,7 +25,7 @@ jobs:
         file: ondemand_exporter
   build:
     machine:
-      image: ubuntu-1604:201903-01
+      image: ubuntu-2004:202101-01
     steps:
     - checkout
     - run: make promu
@@ -37,16 +37,6 @@ jobs:
     - store_artifacts:
         path: .build
         destination: /build
-  release:
-    executor: golang
-    steps:
-    - prometheus/setup_build_environment
-    - run: promu crossbuild tarballs
-    - run: promu checksum .tarballs
-    - run: promu release .tarballs
-    - store_artifacts:
-        destination: releases
-        path: .tarballs
 workflows:
   version: 2
   ondemand_exporter:
@@ -59,8 +49,10 @@ workflows:
         filters:
           tags:
             only: /.*/
-    - release:
+    - prometheus/publish_release:
         context: org-context
+        docker_hub_organization: ''
+        quay_io_organization: ''
         requires:
         - test
         - build
