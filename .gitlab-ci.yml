@@ -16,8 +16,6 @@ rpm-build-el7:
   only:
     - tags
     - external_pull_requests
-  except:
-    - branches
   script:
     - ./tmp/ondemand-packaging/build.sh -w $CI_PROJECT_DIR/tmp/work -o $CI_PROJECT_DIR/tmp/output -V $CI_COMMIT_TAG -u -v -C -d el7 $CI_PROJECT_DIR/packaging/rpm
   artifacts:
@@ -30,8 +28,6 @@ rpm-build-el8:
   only:
     - tags
     - external_pull_requests
-  except:
-    - branches
   script:
     - ./tmp/ondemand-packaging/build.sh -w $CI_PROJECT_DIR/tmp/work -o $CI_PROJECT_DIR/tmp/output -V $CI_COMMIT_TAG -u -v -C -d el8 $CI_PROJECT_DIR/packaging/rpm
   artifacts:
