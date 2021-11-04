@@ -30,7 +30,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-kit/kit/log"
+	"github.com/go-kit/log"
 )
 
 func TestGetInstances(t *testing.T) {

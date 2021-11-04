@@ -31,7 +31,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/go-kit/kit/log"
+	"github.com/go-kit/log"
 )
 
 func TestGetApacheStatusURL_Default(t *testing.T) {

@@ -26,8 +26,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/procfs"
 	"gopkg.in/alecthomas/kingpin.v2"
@@ -111,7 +111,7 @@ func getProcessMetrics(puns []string, logger log.Logger) (ProcessMetrics, error)
 	metrics.PunCpuTime = pun_cpu_time
 	metrics.PunMemoryRSS = pun_memory_rss
 	metrics.PunMemoryVMS = pun_memory_vms
-	metrics.PunMemoryPercent = 100 * (float64(pun_memory_rss) / (float64(meminfo.MemTotal) * 1024.0))
+	metrics.PunMemoryPercent = 100 * (float64(pun_memory_rss) / (float64(*meminfo.MemTotal) * 1024.0))
 	return metrics, nil
 }
 
