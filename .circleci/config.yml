@@ -23,20 +23,6 @@ jobs:
         file: coverage.txt
     - prometheus/store_artifact:
         file: ondemand_exporter
-  build:
-    machine:
-      image: ubuntu-2004:202101-01
-    steps:
-    - checkout
-    - run: make promu
-    - run: promu crossbuild -v
-    - persist_to_workspace:
-        root: .
-        paths:
-        - .build
-    - store_artifacts:
-        path: .build
-        destination: /build
 workflows:
   version: 2
   ondemand_exporter:
@@ -45,7 +31,7 @@ workflows:
         filters:
           tags:
             only: /.*/
-    - build:
+    - prometheus/build:
         filters:
           tags:
             only: /.*/
@@ -55,7 +41,7 @@ workflows:
         quay_io_organization: ''
         requires:
         - test
-        - build
+        - prometheus/build
         filters:
           tags:
             only: /^v([0-9]).*/
