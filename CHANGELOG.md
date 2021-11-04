@@ -1,3 +1,8 @@
+## 0.9.0 / 2021-11-04
+
+* [ENHANCEMENT] Use Go 1.17
+* [ENHANCEMENT] Update Go module dependencies
+
 ## 0.8.1 / 2021-11-03
 
 * [BUGFIX] Fix parsing of no instances with latest Passenger
