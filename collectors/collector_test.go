@@ -25,7 +25,6 @@ package collectors
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -38,10 +37,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/alecthomas/kingpin/v2"
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
-	"gopkg.in/alecthomas/kingpin.v2"
 )
 
 var (
@@ -104,7 +103,7 @@ bar`
 	_, filename, _, _ := runtime.Caller(0)
 	dir := filepath.Dir(filename)
 	fixture := filepath.Join(dir, "../fixtures/status")
-	fixtureData, err := ioutil.ReadFile(fixture)
+	fixtureData, err := os.ReadFile(fixture)
 	if err != nil {
 		t.Fatalf("Error loading fixture data: %s", err.Error())
 	}
@@ -113,13 +112,13 @@ bar`
 	}))
 	defer server.Close()
 	apacheStatusURL = &server.URL
-	tmpDir, err := ioutil.TempDir(os.TempDir(), "passenger")
+	tmpDir, err := os.MkdirTemp(os.TempDir(), "passenger")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(tmpDir)
 	passengerStatus := tmpDir + "/ondemand-passenger-status"
-	if err := ioutil.WriteFile(passengerStatus, []byte(""), 0644); err != nil {
+	if err := os.WriteFile(passengerStatus, []byte(""), 0644); err != nil {
 		t.Fatal(err)
 	}
 	passengerStatusPath = &passengerStatus
@@ -238,7 +237,7 @@ bar`
 	_, filename, _, _ := runtime.Caller(0)
 	dir := filepath.Dir(filename)
 	fixture := filepath.Join(dir, "../fixtures/status")
-	fixtureData, err := ioutil.ReadFile(fixture)
+	fixtureData, err := os.ReadFile(fixture)
 	if err != nil {
 		t.Fatalf("Error loading fixture data: %s", err.Error())
 	}
@@ -247,13 +246,13 @@ bar`
 	}))
 	defer server.Close()
 	apacheStatusURL = &server.URL
-	tmpDir, err := ioutil.TempDir(os.TempDir(), "passenger")
+	tmpDir, err := os.MkdirTemp(os.TempDir(), "passenger")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(tmpDir)
 	passengerStatus := tmpDir + "/ondemand-passenger-status"
-	if err := ioutil.WriteFile(passengerStatus, []byte(""), 0644); err != nil {
+	if err := os.WriteFile(passengerStatus, []byte(""), 0644); err != nil {
 		t.Fatal(err)
 	}
 	passengerStatusPath = &passengerStatus
@@ -304,6 +303,6 @@ func readFixture(name string) string {
 	_, filename, _, _ := runtime.Caller(0)
 	dir := filepath.Dir(filename)
 	fixture := filepath.Join(dir, fmt.Sprintf("../fixtures/%s", name))
-	fixtureData, _ := ioutil.ReadFile(fixture)
+	fixtureData, _ := os.ReadFile(fixture)
 	return string(fixtureData)
 }
