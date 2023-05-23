@@ -23,7 +23,6 @@
 package collectors
 
 import (
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -46,7 +45,7 @@ func TestGetApacheStatusURL_Default(t *testing.T) {
 }
 
 func TestGetApacheStatusURL_read_ood_portal(t *testing.T) {
-	tmpDir, err := ioutil.TempDir(os.TempDir(), "tmp")
+	tmpDir, err := os.MkdirTemp(os.TempDir(), "tmp")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,7 +54,7 @@ func TestGetApacheStatusURL_read_ood_portal(t *testing.T) {
 servername: ood.example.com
 port: 443`
 	oodPortalPath = tmpDir + "/ood_porta.yml"
-	if err := ioutil.WriteFile(oodPortalPath, []byte(oodPortalYAML), 0644); err != nil {
+	if err := os.WriteFile(oodPortalPath, []byte(oodPortalYAML), 0644); err != nil {
 		t.Fatal(err)
 	}
 	fqdn = "foo.example.com"
@@ -70,7 +69,7 @@ func TestGetApacheMetrics(t *testing.T) {
 	_, filename, _, _ := runtime.Caller(0)
 	dir := filepath.Dir(filename)
 	fixture := filepath.Join(dir, "../fixtures/status")
-	fixtureData, err := ioutil.ReadFile(fixture)
+	fixtureData, err := os.ReadFile(fixture)
 	if err != nil {
 		t.Fatalf("Error loading fixture data: %s", err.Error())
 	}
@@ -101,7 +100,7 @@ func TestGetApacheMetricsThreadMPM(t *testing.T) {
 	_, filename, _, _ := runtime.Caller(0)
 	dir := filepath.Dir(filename)
 	fixture := filepath.Join(dir, "../fixtures/status2")
-	fixtureData, err := ioutil.ReadFile(fixture)
+	fixtureData, err := os.ReadFile(fixture)
 	if err != nil {
 		t.Fatalf("Error loading fixture data: %s", err.Error())
 	}

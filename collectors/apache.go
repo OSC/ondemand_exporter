@@ -25,17 +25,17 @@ package collectors
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"strings"
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/alecthomas/kingpin/v2"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
-	"gopkg.in/alecthomas/kingpin.v2"
 	"gopkg.in/yaml.v2"
 )
 
@@ -81,7 +81,7 @@ func getApacheStatusURL(logger log.Logger) string {
 		level.Info(logger).Log("msg", "File not found, using default Apache status URL", "file", oodPortalPath)
 		return defaultApacheStatusURL
 	}
-	data, err := ioutil.ReadFile(oodPortalPath)
+	data, err := os.ReadFile(oodPortalPath)
 	if err != nil {
 		level.Error(logger).Log("msg", fmt.Sprintf("Error reading %s: %v", oodPortalPath, err))
 		return defaultApacheStatusURL
@@ -121,7 +121,7 @@ func getApacheMetrics(apacheStatus string, fqdn string, ctx context.Context, log
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
-		data, err := ioutil.ReadAll(resp.Body)
+		data, err := io.ReadAll(resp.Body)
 		if err != nil {
 			data = []byte(err.Error())
 		}
