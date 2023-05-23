@@ -1,3 +1,7 @@
+## 0.10.0 / 2023-05-23
+
+* [ENHANCEMENT] Update to Go 1.20 and update Go module dependencies (#26)
+
 ## 0.9.0 / 2021-11-04
 
 * [ENHANCEMENT] Use Go 1.17
