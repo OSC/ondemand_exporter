@@ -66,7 +66,7 @@ func TestExecCommandHelper(t *testing.T) {
 		return
 	}
 
-	//nolint:staticcheck
+	//nolint:staticcheck,govet
 	fmt.Fprintf(os.Stdout, os.Getenv("STDOUT"))
 	i, _ := strconv.Atoi(os.Getenv("EXIT_STATUS"))
 	os.Exit(i)
