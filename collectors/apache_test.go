@@ -30,14 +30,14 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/go-kit/log"
+	"github.com/prometheus/common/promslog"
 )
 
 func TestGetApacheStatusURL_Default(t *testing.T) {
 	defer func() { osHostname = os.Hostname }()
 	fqdn = "foo.example.com"
 	osHostname = func() (string, error) { return "foo.example.com", nil }
-	ret := getApacheStatusURL(log.NewNopLogger())
+	ret := getApacheStatusURL(promslog.NewNopLogger())
 	expected := "http://foo.example.com/server-status"
 	if ret != expected {
 		t.Errorf("Expected %s, got %s", expected, ret)
@@ -58,7 +58,7 @@ port: 443`
 		t.Fatal(err)
 	}
 	fqdn = "foo.example.com"
-	ret := getApacheStatusURL(log.NewNopLogger())
+	ret := getApacheStatusURL(promslog.NewNopLogger())
 	expected := "https://ood.example.com/server-status"
 	if ret != expected {
 		t.Errorf("Expected %s, got %s", expected, ret)
@@ -77,7 +77,7 @@ func TestGetApacheMetrics(t *testing.T) {
 		_, _ = rw.Write(fixtureData)
 	}))
 	defer server.Close()
-	m, err := getApacheMetrics(server.URL, "ood.example.com", ctx, log.NewNopLogger())
+	m, err := getApacheMetrics(server.URL, "ood.example.com", ctx, promslog.NewNopLogger())
 	if err != nil {
 		t.Errorf("Unexpected error: %s", err.Error())
 		return
@@ -108,7 +108,7 @@ func TestGetApacheMetricsThreadMPM(t *testing.T) {
 		_, _ = rw.Write(fixtureData)
 	}))
 	defer server.Close()
-	m, err := getApacheMetrics(server.URL, "ood.example.com", ctx, log.NewNopLogger())
+	m, err := getApacheMetrics(server.URL, "ood.example.com", ctx, promslog.NewNopLogger())
 	if err != nil {
 		t.Errorf("Unexpected error: %s", err.Error())
 		return

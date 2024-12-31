@@ -28,16 +28,14 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/go-kit/log"
+	"github.com/prometheus/common/promslog"
 )
 
 func TestGetProcessMetrics(t *testing.T) {
 	_, filename, _, _ := runtime.Caller(0)
 	dir := filepath.Dir(filename)
 	procFS = filepath.Join(dir, "../fixtures/proc")
-	//w := log.NewSyncWriter(os.Stderr)
-	//logger := log.NewLogfmtLogger(w)
-	logger := log.NewNopLogger()
+	logger := promslog.NewNopLogger()
 	m, err := getProcessMetrics([]string{"32666", "20821"}, logger)
 	if err != nil {
 		t.Errorf("Unexpected error: %s", err.Error())

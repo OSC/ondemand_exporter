@@ -23,12 +23,14 @@
 package collectors
 
 import (
+	"context"
+	"log/slog"
+	"slices"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/alecthomas/kingpin/v2"
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/procfs"
 )
@@ -44,7 +46,7 @@ type ProcessCollector struct {
 	PunCpuTime       *prometheus.Desc
 	PunMemory        *prometheus.Desc
 	PunMemoryPercent *prometheus.Desc
-	logger           log.Logger
+	logger           *slog.Logger
 }
 
 type ProcessMetrics struct {
@@ -56,7 +58,7 @@ type ProcessMetrics struct {
 	PunMemoryPercent float64
 }
 
-func getProcessMetrics(puns []string, logger log.Logger) (ProcessMetrics, error) {
+func getProcessMetrics(puns []string, logger *slog.Logger) (ProcessMetrics, error) {
 	var metrics ProcessMetrics
 	var rackApps, nodeApps float64
 	var pun_cpu_time float64
@@ -73,26 +75,26 @@ func getProcessMetrics(puns []string, logger log.Logger) (ProcessMetrics, error)
 	if err != nil {
 		return ProcessMetrics{}, err
 	}
-	level.Debug(logger).Log("msg", "Getting process for PUNS", "puns", strings.Join(puns, ","))
+	logger.Debug("Getting process for PUNS", "puns", strings.Join(puns, ","))
 	for _, proc := range procs {
 		procCmdLine, _ := proc.CmdLine()
 		cmdline := strings.Join(procCmdLine, " ")
 		status, err := proc.NewStatus()
 		if err != nil {
-			level.Debug(logger).Log("msg", "Unable to get process status", "pid", proc.PID, "cmdline", cmdline)
+			logger.Debug("Unable to get process status", "pid", proc.PID, "cmdline", cmdline)
 			continue
 		}
-		uid := status.UIDs[0]
+		uid := strconv.FormatUint(status.UIDs[0], 10)
 		stat, err := proc.Stat()
 		if err != nil {
-			level.Debug(logger).Log("msg", "Unable to get PUN proc stat", "pid", proc.PID, "uid", uid, "cmdline", cmdline)
+			logger.Debug("Unable to get PUN proc stat", "pid", proc.PID, "uid", uid, "cmdline", cmdline)
 			continue
 		}
 		if uid == "0" {
 			continue
 		}
-		if !sliceContains(puns, uid) {
-			level.Debug(logger).Log("msg", "Skip PID that does not belong to PUN", "pid", proc.PID, "uid", uid, "cmdline", cmdline)
+		if !slices.Contains(puns, uid) {
+			logger.Debug("Skip PID that does not belong to PUN", "pid", proc.PID, "uid", uid, "cmdline", cmdline)
 			continue
 		}
 		if strings.Contains(cmdline, "rack-loader.rb") {
@@ -100,7 +102,7 @@ func getProcessMetrics(puns []string, logger log.Logger) (ProcessMetrics, error)
 		} else if strings.Contains(cmdline, "Passenger NodeApp") {
 			nodeApps++
 		}
-		level.Debug(logger).Log("msg", "Collecting PUN proc stat", "pid", proc.PID, "uid", uid,
+		logger.Debug("Collecting PUN proc stat", "pid", proc.PID, "uid", uid,
 			"cputime", stat.CPUTime(), "rss", stat.ResidentMemory(), "vms", stat.VirtualMemory())
 		pun_cpu_time = pun_cpu_time + stat.CPUTime()
 		pun_memory_rss = pun_memory_rss + float64(stat.ResidentMemory())
@@ -115,7 +117,8 @@ func getProcessMetrics(puns []string, logger log.Logger) (ProcessMetrics, error)
 	return metrics, nil
 }
 
-func NewProcessCollector(logger log.Logger) *ProcessCollector {
+func NewProcessCollector(logger *slog.Logger) *ProcessCollector {
+	logger.LogAttrs(context.Background(), slog.LevelInfo, "process collector", slog.String("collector", "process"))
 	return &ProcessCollector{
 		logger:           logger,
 		RackApps:         prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "rack_apps"), "Number of running Rack apps", nil, nil),
@@ -127,7 +130,7 @@ func NewProcessCollector(logger log.Logger) *ProcessCollector {
 }
 
 func (c *ProcessCollector) collect(puns []string, ch chan<- prometheus.Metric) error {
-	level.Debug(c.logger).Log("msg", "Collecting process metrics")
+	c.logger.Debug("Collecting process metrics")
 	collectTime := time.Now()
 
 	c1 := make(chan int, 1)
@@ -146,7 +149,7 @@ func (c *ProcessCollector) collect(puns []string, ch chan<- prometheus.Metric) e
 		timeout = true
 		close(c1)
 		ch <- prometheus.MustNewConstMetric(collecTimeout, prometheus.GaugeValue, 1, "process")
-		level.Error(c.logger).Log("msg", "Timeout collecting process information")
+		c.logger.Error("Timeout collecting process information")
 		return nil
 	}
 	close(c1)

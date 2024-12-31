@@ -26,6 +26,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"strings"
@@ -33,8 +34,6 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/alecthomas/kingpin/v2"
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
 	"gopkg.in/yaml.v2"
 )
@@ -51,7 +50,7 @@ type ApacheCollector struct {
 	ClientConnections       *prometheus.Desc
 	UniqueClientConnections *prometheus.Desc
 	UniqueWebsocketClients  *prometheus.Desc
-	logger                  log.Logger
+	logger                  *slog.Logger
 }
 
 type ApacheMetrics struct {
@@ -63,34 +62,34 @@ type ApacheMetrics struct {
 
 type connection map[string]interface{}
 
-func getFQDN(logger log.Logger) string {
+func getFQDN(logger *slog.Logger) string {
 	hostname, err := osHostname()
 	if err != nil {
-		level.Info(logger).Log("msg", fmt.Sprintf("Unable to determine FQDN: %v", err))
+		logger.Info(fmt.Sprintf("Unable to determine FQDN: %v", err))
 		return fqdn
 	}
 	return hostname
 }
 
-func getApacheStatusURL(logger log.Logger) string {
+func getApacheStatusURL(logger *slog.Logger) string {
 	defaultApacheStatusURL := "http://" + fqdn + "/server-status"
 	var config oodPortal
 	var servername, port, apacheStatus string
 	_, statErr := os.Stat(oodPortalPath)
 	if os.IsNotExist(statErr) {
-		level.Info(logger).Log("msg", "File not found, using default Apache status URL", "file", oodPortalPath)
+		logger.Info("File not found, using default Apache status URL", "file", oodPortalPath)
 		return defaultApacheStatusURL
 	}
 	data, err := os.ReadFile(oodPortalPath)
 	if err != nil {
-		level.Error(logger).Log("msg", fmt.Sprintf("Error reading %s: %v", oodPortalPath, err))
+		logger.Error(fmt.Sprintf("Error reading %s: %v", oodPortalPath, err))
 		return defaultApacheStatusURL
 	}
 	if err := yaml.Unmarshal(data, &config); err != nil {
-		level.Error(logger).Log("msg", fmt.Sprintf("Error parsing %s: %v", oodPortalPath, err))
+		logger.Error(fmt.Sprintf("Error parsing %s: %v", oodPortalPath, err))
 		return defaultApacheStatusURL
 	}
-	level.Debug(logger).Log("msg", fmt.Sprintf("Parsed %s", oodPortalPath), "servername", config.Servername, "port", config.Port, "config", config)
+	logger.Debug(fmt.Sprintf("Parsed %s", oodPortalPath), "servername", config.Servername, "port", config.Port, "config", config)
 	if config.Servername != "" {
 		servername = config.Servername
 	} else {
@@ -109,7 +108,7 @@ func getApacheStatusURL(logger log.Logger) string {
 	return apacheStatus
 }
 
-func getApacheMetrics(apacheStatus string, fqdn string, ctx context.Context, logger log.Logger) (ApacheMetrics, error) {
+func getApacheMetrics(apacheStatus string, fqdn string, ctx context.Context, logger *slog.Logger) (ApacheMetrics, error) {
 	var metrics ApacheMetrics
 	req, err := http.NewRequest("GET", apacheStatus, nil)
 	if err != nil {
@@ -199,7 +198,8 @@ func getApacheMetrics(apacheStatus string, fqdn string, ctx context.Context, log
 	return metrics, nil
 }
 
-func NewApacheCollector(logger log.Logger) *ApacheCollector {
+func NewApacheCollector(logger *slog.Logger) *ApacheCollector {
+	logger.LogAttrs(context.Background(), slog.LevelInfo, "apache collector", slog.String("collector", "apache"))
 	return &ApacheCollector{
 		logger:                  logger,
 		WebsocketConnections:    prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "websocket_connections"), "Number of websocket connections", nil, nil),
@@ -217,13 +217,13 @@ func (c *ApacheCollector) collect(ch chan<- prometheus.Metric) error {
 	} else {
 		apacheStatus = *apacheStatusURL
 	}
-	level.Debug(c.logger).Log("msg", "Collecting apache metrics")
+	c.logger.Debug("Collecting apache metrics")
 	collectTime := time.Now()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(*apacheTimeout)*time.Second)
 	defer cancel()
 	apacheMetrics, err := getApacheMetrics(apacheStatus, fqdn, ctx, c.logger)
 	if ctx.Err() == context.DeadlineExceeded {
-		level.Error(c.logger).Log("msg", "Timeout requesting Apache metrics")
+		c.logger.Error("Timeout requesting Apache metrics")
 		ch <- prometheus.MustNewConstMetric(collecTimeout, prometheus.GaugeValue, 1, "apache")
 		return nil
 	}

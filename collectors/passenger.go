@@ -27,14 +27,14 @@ import (
 	"context"
 	"encoding/xml"
 	"fmt"
+	"log/slog"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/alecthomas/kingpin/v2"
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/procfs"
 	"golang.org/x/net/html/charset"
@@ -61,7 +61,7 @@ type PassengerCollector struct {
 	RealMemory *prometheus.Desc
 	Requests   *prometheus.Desc
 	AvgRuntime *prometheus.Desc
-	logger     log.Logger
+	logger     *slog.Logger
 }
 
 type PassengerAppMetrics struct {
@@ -83,7 +83,8 @@ type PassengerProcessMetrics struct {
 	Runtime           int64
 }
 
-func NewPassengerCollector(logger log.Logger) *PassengerCollector {
+func NewPassengerCollector(logger *slog.Logger) *PassengerCollector {
+	logger.LogAttrs(context.Background(), slog.LevelInfo, "Passenger collector", slog.String("collector", "passenger"))
 	return &PassengerCollector{
 		logger:     logger,
 		Instances:  prometheus.NewDesc(prometheus.BuildFQName(namespace, "passenger", "instances"), "Number of Passenger instances", nil, nil),
@@ -98,7 +99,7 @@ func NewPassengerCollector(logger log.Logger) *PassengerCollector {
 }
 
 func (c *PassengerCollector) collect(puns []string, ch chan<- prometheus.Metric) error {
-	level.Debug(c.logger).Log("msg", "Collecting passenger metrics")
+	c.logger.Debug("Collecting passenger metrics")
 	if !fileExists(*passengerStatusPath) {
 		return fmt.Errorf("%s not found", *passengerStatusPath)
 	}
@@ -122,14 +123,14 @@ func (c *PassengerCollector) collect(puns []string, ch chan<- prometheus.Metric)
 		var metric PassengerAppMetrics
 		am, ok := appMetrics[m.Name]
 		if ok {
-			level.Debug(c.logger).Log("msg", "Existing app metric", "app", m.Name, "processes", len(m.Processes))
+			c.logger.Debug("Existing app metric", "app", m.Name, "processes", len(m.Processes))
 			metric = am
 		} else {
-			level.Debug(c.logger).Log("msg", "New app metric", "app", m.Name, "processes", len(m.Processes))
+			c.logger.Debug("New app metric", "app", m.Name, "processes", len(m.Processes))
 			metric = m
 		}
 		metric.Count++
-		level.Debug(c.logger).Log("msg", "App count", "app", m.Name, "count", metric.Count)
+		c.logger.Debug("App count", "app", m.Name, "count", metric.Count)
 		for _, p := range m.Processes {
 			metric.ProcCount++
 			metric.RSS = metric.RSS + p.RSS
@@ -206,20 +207,20 @@ func (c *PassengerCollector) getInstancesByPID(puns []string) ([]string, error) 
 		cmdline := strings.Join(procCmdLine, " ")
 		status, err := proc.NewStatus()
 		if err != nil {
-			level.Debug(c.logger).Log("msg", "Unable to get process status", "pid", proc.PID, "cmdline", cmdline)
+			c.logger.Debug("Unable to get process status", "pid", proc.PID, "cmdline", cmdline)
 			continue
 		}
-		uid := status.UIDs[0]
+		uid := strconv.FormatUint(status.UIDs[0], 10)
 		if uid == "0" {
 			continue
 		}
-		if !sliceContains(puns, uid) {
-			level.Debug(c.logger).Log("msg", "Skip PID that does not belong to PUN",
+		if !slices.Contains(puns, uid) {
+			c.logger.Debug("Skip PID that does not belong to PUN",
 				"puns", strings.Join(puns, ","), "pid", proc.PID, "uid", uid, "cmdline", cmdline)
 			continue
 		}
 		if cmdline != "Passenger watchdog" {
-			level.Debug(c.logger).Log("msg", "Skip PID that is not Passenger watchdog", "pid", proc.PID, "uid", uid, "cmdline", cmdline)
+			c.logger.Debug("Skip PID that is not Passenger watchdog", "pid", proc.PID, "uid", uid, "cmdline", cmdline)
 			continue
 		}
 		pids = append(pids, strconv.Itoa(proc.PID))
@@ -234,17 +235,17 @@ func (c *PassengerCollector) getInstancesMetrics(ctx context.Context, instances 
 	wg.Add(len(instances))
 	for _, instance := range instances {
 		go func(inst string) {
-			level.Debug(c.logger).Log("msg", "Collecting passenger instance metrics", "instance", inst)
+			c.logger.Debug("Collecting passenger instance metrics", "instance", inst)
 			defer wg.Done()
 			m, err := c.getMetrics(ctx, inst)
 			if err != nil {
-				level.Error(c.logger).Log("msg", fmt.Sprintf("Error collecting %s instance metrics", inst), "err", err)
+				c.logger.Error(fmt.Sprintf("Error collecting %s instance metrics", inst), "err", err)
 				passengerMetricMutex.Lock()
 				errors = append(errors, err)
 				passengerMetricMutex.Unlock()
 				return
 			}
-			level.Debug(c.logger).Log("msg", "DONE Collecting passenger instance metrics", "instance", inst)
+			c.logger.Debug("DONE Collecting passenger instance metrics", "instance", inst)
 			passengerMetricMutex.Lock()
 			metrics = append(metrics, m...)
 			passengerMetricMutex.Unlock()
@@ -256,7 +257,7 @@ func (c *PassengerCollector) getInstancesMetrics(ctx context.Context, instances 
 
 func (c *PassengerCollector) getMetrics(ctx context.Context, instance string) ([]PassengerAppMetrics, error) {
 	now := timeNow().Unix()
-	level.Debug(c.logger).Log("msg", "NOW", "now", now)
+	c.logger.Debug("NOW", "now", now)
 	var metrics []PassengerAppMetrics
 	out, err := passengerStatusExecInstance(ctx, instance, c.logger)
 	if err != nil {
@@ -271,7 +272,7 @@ func (c *PassengerCollector) getMetrics(ctx context.Context, instance string) ([
 		return nil, err
 	}
 	if len(info.SuperGroups) == 0 {
-		level.Warn(c.logger).Log("msg", "Supergroups is empty", "instance", instance)
+		c.logger.Warn("Supergroups is empty", "instance", instance)
 		return nil, nil
 	}
 	for _, s := range info.SuperGroups {
@@ -293,7 +294,7 @@ func (c *PassengerCollector) getMetrics(ctx context.Context, instance string) ([
 	return metrics, nil
 }
 
-func passengerStatus(ctx context.Context, instance string, logger log.Logger) (string, error) {
+func passengerStatus(ctx context.Context, instance string, logger *slog.Logger) (string, error) {
 	var cmds []string
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
@@ -314,7 +315,7 @@ func passengerStatus(ctx context.Context, instance string, logger log.Logger) (s
 		} else if strings.Contains(stderr.String(), "doesn't seem to be running") {
 			return stdout.String(), nil
 		}
-		level.Error(logger).Log("msg", fmt.Sprintf("Error executing %s", *passengerStatusPath), "err", stderr.String(), "out", stdout.String())
+		logger.Error(fmt.Sprintf("Error executing %s", *passengerStatusPath), "err", stderr.String(), "out", stdout.String())
 		return "", err
 	}
 	return stdout.String(), nil
