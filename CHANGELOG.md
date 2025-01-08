@@ -1,3 +1,7 @@
+## 0.11.2 / 2025-01-08
+
+* [BUGFIX] Release files too
+
 ## 0.11.1 / 2025-01-08
 
 * [BUGFIX] Fix logging collector attribute (#29)
