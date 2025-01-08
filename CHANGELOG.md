@@ -1,6 +1,7 @@
 ## 0.11.0 / 2025-01-08
 
 * [ENHANCEMENT] Update Go to 1.23.x and update all Go module dependencies (#27)
+* [ENHANCEMENT] Use Github Actions for release and goreleaser-cross (#28)
 
 ## 0.10.0 / 2023-05-23
 
