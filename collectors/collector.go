@@ -152,7 +152,7 @@ func (c *Collector) collect(ch chan<- prometheus.Metric) error {
 	wg.Add(3)
 
 	go func(puns []string) {
-		p := NewProcessCollector(c.logger)
+		p := NewProcessCollector(c.logger.With("collector", "process"))
 		err := p.collect(puns, ch)
 		if err != nil {
 			c.logger.Error("Error collecting process information", "err", err)
