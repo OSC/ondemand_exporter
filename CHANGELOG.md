@@ -1,3 +1,7 @@
+## 0.11.1 / 2025-01-08
+
+* [BUGFIX] Fix logging collector attribute (#29)
+
 ## 0.11.0 / 2025-01-08
 
 * [ENHANCEMENT] Update Go to 1.23.x and update all Go module dependencies (#27)
