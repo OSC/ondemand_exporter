@@ -199,7 +199,6 @@ func getApacheMetrics(apacheStatus string, fqdn string, ctx context.Context, log
 }
 
 func NewApacheCollector(logger *slog.Logger) *ApacheCollector {
-	logger.LogAttrs(context.Background(), slog.LevelInfo, "apache collector", slog.String("collector", "apache"))
 	return &ApacheCollector{
 		logger:                  logger,
 		WebsocketConnections:    prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "websocket_connections"), "Number of websocket connections", nil, nil),

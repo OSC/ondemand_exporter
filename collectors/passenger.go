@@ -84,7 +84,6 @@ type PassengerProcessMetrics struct {
 }
 
 func NewPassengerCollector(logger *slog.Logger) *PassengerCollector {
-	logger.LogAttrs(context.Background(), slog.LevelInfo, "Passenger collector", slog.String("collector", "passenger"))
 	return &PassengerCollector{
 		logger:     logger,
 		Instances:  prometheus.NewDesc(prometheus.BuildFQName(namespace, "passenger", "instances"), "Number of Passenger instances", nil, nil),

@@ -23,7 +23,6 @@
 package collectors
 
 import (
-	"context"
 	"log/slog"
 	"slices"
 	"strconv"
@@ -118,7 +117,6 @@ func getProcessMetrics(puns []string, logger *slog.Logger) (ProcessMetrics, erro
 }
 
 func NewProcessCollector(logger *slog.Logger) *ProcessCollector {
-	logger.LogAttrs(context.Background(), slog.LevelInfo, "process collector", slog.String("collector", "process"))
 	return &ProcessCollector{
 		logger:           logger,
 		RackApps:         prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "rack_apps"), "Number of running Rack apps", nil, nil),
