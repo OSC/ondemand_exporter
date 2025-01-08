@@ -24,20 +24,18 @@ package collectors
 
 import (
 	"context"
-	//"os"
+	"log/slog"
 	"path/filepath"
 	"runtime"
 	"testing"
 	"time"
 
-	"github.com/go-kit/log"
+	"github.com/prometheus/common/promslog"
 )
 
 func TestGetInstances(t *testing.T) {
-	//w := log.NewSyncWriter(os.Stderr)
-	//logger := log.NewLogfmtLogger(w)
-	logger := log.NewNopLogger()
-	passengerStatusExec = func(ctx context.Context, instance string, logger log.Logger) (string, error) {
+	logger := promslog.NewNopLogger()
+	passengerStatusExec = func(ctx context.Context, instance string, logger *slog.Logger) (string, error) {
 		return readFixture("passenger-status.out"), nil
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -57,14 +55,12 @@ func TestGetInstancesOne(t *testing.T) {
 	_, filename, _, _ := runtime.Caller(0)
 	dir := filepath.Dir(filename)
 	procFS = filepath.Join(dir, "../fixtures/proc")
-	passengerStatusExec = func(ctx context.Context, instance string, logger log.Logger) (string, error) {
+	passengerStatusExec = func(ctx context.Context, instance string, logger *slog.Logger) (string, error) {
 		return readFixture("passenger-status-57564.out"), nil
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	//w := log.NewSyncWriter(os.Stderr)
-	//logger := log.NewLogfmtLogger(w)
-	logger := log.NewNopLogger()
+	logger := promslog.NewNopLogger()
 	collector := NewPassengerCollector(logger)
 	m, err := collector.getInstances([]string{"32666"}, ctx)
 	if err != nil {

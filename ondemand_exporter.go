@@ -23,17 +23,17 @@
 package main
 
 import (
+	"log/slog"
 	"net/http"
 	"os"
 
 	"github.com/OSC/ondemand_exporter/collectors"
 	"github.com/alecthomas/kingpin/v2"
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
+	versioncollector "github.com/prometheus/client_golang/prometheus/collectors/version"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/prometheus/common/promlog"
-	"github.com/prometheus/common/promlog/flag"
+	"github.com/prometheus/common/promslog"
+	"github.com/prometheus/common/promslog/flag"
 	"github.com/prometheus/common/version"
 )
 
@@ -41,12 +41,12 @@ var (
 	listenAddr = kingpin.Flag("web.listen-address", "Address to listen on for web interface and telemetry.").Default(":9301").Envar("LISTEN_ADDRESS").String()
 )
 
-func metricsHandler(logger log.Logger) http.HandlerFunc {
+func metricsHandler(logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		collector := collectors.NewCollector(logger)
 		registry := prometheus.NewRegistry()
 		registry.MustRegister(collector)
-		registry.MustRegister(version.NewCollector("ondemand_exporter"))
+		registry.MustRegister(versioncollector.NewCollector("ondemand_exporter"))
 
 		gatherers := prometheus.Gatherers{
 			prometheus.DefaultGatherer,
@@ -60,16 +60,16 @@ func metricsHandler(logger log.Logger) http.HandlerFunc {
 
 func main() {
 	metricsEndpoint := "/metrics"
-	promlogConfig := &promlog.Config{}
-	flag.AddFlags(kingpin.CommandLine, promlogConfig)
+	promslogConfig := &promslog.Config{}
+	flag.AddFlags(kingpin.CommandLine, promslogConfig)
 	kingpin.Version(version.Print("ondemand_exporter"))
 	kingpin.HelpFlag.Short('h')
 	kingpin.Parse()
 
-	logger := promlog.New(promlogConfig)
-	level.Info(logger).Log("msg", "Starting ondemand_exporter", "version", version.Info())
-	level.Info(logger).Log("msg", "Build context", "build_context", version.BuildContext())
-	level.Info(logger).Log("msg", "Starting Server", "address", *listenAddr)
+	logger := promslog.New(promslogConfig)
+	logger.Info("Starting ondemand_exporter", "version", version.Info())
+	logger.Info("Build context", "build_context", version.BuildContext())
+	logger.Info("Starting Server", "address", *listenAddr)
 
 	http.Handle(metricsEndpoint, metricsHandler(logger))
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -83,7 +83,7 @@ func main() {
 	})
 	err := http.ListenAndServe(*listenAddr, nil)
 	if err != nil {
-		level.Error(logger).Log("err", err)
+		logger.Error(err.Error())
 		os.Exit(1)
 	}
 }

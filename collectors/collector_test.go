@@ -25,6 +25,7 @@ package collectors
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -38,9 +39,9 @@ import (
 	"time"
 
 	"github.com/alecthomas/kingpin/v2"
-	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
+	"github.com/prometheus/common/promslog"
 )
 
 var (
@@ -65,7 +66,7 @@ func TestExecCommandHelper(t *testing.T) {
 		return
 	}
 
-	//nolint:staticcheck
+	//nolint:staticcheck,govet
 	fmt.Fprintf(os.Stdout, os.Getenv("STDOUT"))
 	i, _ := strconv.Atoi(os.Getenv("EXIT_STATUS"))
 	os.Exit(i)
@@ -81,7 +82,7 @@ foo
 bar`
 	expPuns := []string{"foo", "bar"}
 	defer func() { execCommand = exec.CommandContext }()
-	puns, _, err := getActivePuns(ctx, log.NewNopLogger())
+	puns, _, err := getActivePuns(ctx, promslog.NewNopLogger())
 	if err != nil {
 		t.Errorf("Unexpected error: %s", err.Error())
 		return
@@ -122,10 +123,10 @@ bar`
 		t.Fatal(err)
 	}
 	passengerStatusPath = &passengerStatus
-	passengerStatusExec = func(ctx context.Context, instance string, logger log.Logger) (string, error) {
+	passengerStatusExec = func(ctx context.Context, instance string, logger *slog.Logger) (string, error) {
 		return readFixture("passenger-status.out"), nil
 	}
-	passengerStatusExecInstance = func(ctx context.Context, instance string, logger log.Logger) (string, error) {
+	passengerStatusExecInstance = func(ctx context.Context, instance string, logger *slog.Logger) (string, error) {
 		return readFixture(fmt.Sprintf("passenger-status-%s.out", instance)), nil
 	}
 	timeNow = func() time.Time {
@@ -205,9 +206,7 @@ bar`
 		# TYPE ondemand_websocket_connections gauge
 		ondemand_websocket_connections 5
 	`
-	w := log.NewSyncWriter(os.Stderr)
-	logger := log.NewLogfmtLogger(w)
-	//logger := log.NewNopLogger()
+	logger := promslog.NewNopLogger()
 	collector := NewCollector(logger)
 	gatherers := setupGatherer(collector)
 	if val, err := testutil.GatherAndCount(gatherers); err != nil {
@@ -256,7 +255,7 @@ bar`
 		t.Fatal(err)
 	}
 	passengerStatusPath = &passengerStatus
-	passengerStatusExec = func(ctx context.Context, instance string, logger log.Logger) (string, error) {
+	passengerStatusExec = func(ctx context.Context, instance string, logger *slog.Logger) (string, error) {
 		return readFixture("passenger-status-none.out"), nil
 	}
 	timeNow = func() time.Time {
@@ -277,7 +276,7 @@ bar`
 		# TYPE ondemand_passenger_instances gauge
 		ondemand_passenger_instances 0
 	`
-	collector := NewCollector(log.NewNopLogger())
+	collector := NewCollector(promslog.NewNopLogger())
 	gatherers := setupGatherer(collector)
 	if val, err := testutil.GatherAndCount(gatherers); err != nil {
 		t.Errorf("Unexpected error: %v", err)
