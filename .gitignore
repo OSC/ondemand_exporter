@@ -2,3 +2,6 @@
 /.tarballs
 /.build
 /ondemand_exporter
+/coverage.txt
+/dist
+/.release-env
