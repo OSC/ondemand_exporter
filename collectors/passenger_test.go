@@ -26,10 +26,12 @@ import (
 	"context"
 	"log/slog"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"testing"
 	"time"
 
+	"github.com/alecthomas/kingpin/v2"
 	"github.com/prometheus/common/promslog"
 )
 
@@ -70,4 +72,38 @@ func TestGetInstancesOne(t *testing.T) {
 	if len(m) != 1 {
 		t.Errorf("Unexpected count of instances: %d", len(m))
 	}
+}
+
+func TestPassengerStatusArgs(t *testing.T) {
+	if _, err := kingpin.CommandLine.Parse([]string{}); err != nil {
+		t.Fatal(err)
+	}
+	trueValue := true
+	falseValue := false
+	command, args := passengerStatusArgs("foo")
+	if command != "sudo" {
+		t.Errorf("Unexpected command, got %s", command)
+	}
+	expectedArgs := []string{*passengerStatusPath, "--show=xml", "--pid-identifier", "foo"}
+	if !reflect.DeepEqual(args, expectedArgs) {
+		t.Errorf("Unexpected args\nExpected\n%v\nGot\n%v", expectedArgs, args)
+	}
+	useSudo = &falseValue
+	command, args = passengerStatusArgs("foo")
+	if command != *passengerStatusPath {
+		t.Errorf("Unexpected command, got %s", command)
+	}
+	expectedArgs = []string{"--show=xml", "--pid-identifier", "foo"}
+	if !reflect.DeepEqual(args, expectedArgs) {
+		t.Errorf("Unexpected args\nExpected\n%v\nGot\n%v", expectedArgs, args)
+	}
+	command, args = passengerStatusArgs("")
+	if command != *passengerStatusPath {
+		t.Errorf("Unexpected command, got %s", command)
+	}
+	expectedArgs = []string{"--show=xml"}
+	if !reflect.DeepEqual(args, expectedArgs) {
+		t.Errorf("Unexpected args\nExpected\n%v\nGot\n%v", expectedArgs, args)
+	}
+	useSudo = &trueValue
 }

@@ -43,6 +43,7 @@ const (
 
 var (
 	punsTimeout     = kingpin.Flag("collector.puns.timeout", "Timeout for collecting PUNs").Default("10").Envar("PUNS_TIMEOUT").Int()
+	useSudo         = kingpin.Flag("sudo", "Use sudo to execute commands").Default("true").Bool()
 	oodPortalPath   = "/etc/ood/config/ood_portal.yml"
 	execCommand     = exec.CommandContext
 	timeNow         = getTimeNow
@@ -96,10 +97,25 @@ func getCores() int {
 	return runtime.NumCPU()
 }
 
+func activePunArgs() (string, []string) {
+	var command string
+	var args []string
+	nginx_stage := "/opt/ood/nginx_stage/sbin/nginx_stage"
+	if *useSudo {
+		command = "sudo"
+		args = []string{nginx_stage}
+	} else {
+		command = nginx_stage
+	}
+	args = append(args, "nginx_list")
+	return command, args
+}
+
 func getActivePuns(ctx context.Context, logger *slog.Logger) ([]string, []string, error) {
 	var puns []string
 	var punUIDs []string
-	out, err := execCommand(ctx, "sudo", "/opt/ood/nginx_stage/sbin/nginx_stage", "nginx_list").Output()
+	command, args := activePunArgs()
+	out, err := execCommand(ctx, command, args...).Output()
 	if err != nil {
 		return nil, nil, err
 	}
