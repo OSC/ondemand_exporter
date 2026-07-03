@@ -124,7 +124,7 @@ func getApacheMetrics(apacheStatus string, fqdn string, ctx context.Context, log
 		if err != nil {
 			data = []byte(err.Error())
 		}
-		return metrics, fmt.Errorf("Status %s (%d): %s", resp.Status, resp.StatusCode, data)
+		return metrics, fmt.Errorf("status %s (%d): %s", resp.Status, resp.StatusCode, data)
 	}
 	doc, err := goquery.NewDocumentFromReader(resp.Body)
 	if err != nil {
