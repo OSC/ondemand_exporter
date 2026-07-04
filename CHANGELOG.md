@@ -2,6 +2,7 @@
 
 * [ENHANCEMENT] Update to Go 1.26.4 and update module dependencies (#33)
 * [ENHANCEMENT] Update OnDemand dashboard example (#32)
+* [ENHANCEMENT] Add --sudo/--no-sudo flag to turn off sudo usage (#31)
 
 ## 0.11.2 / 2025-01-08
 
