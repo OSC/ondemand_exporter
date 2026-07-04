@@ -1,3 +1,8 @@
+## 0.12.0 / 2026-07-04
+
+* [ENHANCEMENT] Update to Go 1.26.4 and update module dependencies (#33)
+* [ENHANCEMENT] Update OnDemand dashboard example (#32)
+
 ## 0.11.2 / 2025-01-08
 
 * [BUGFIX] Release files too
