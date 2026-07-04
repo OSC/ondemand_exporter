@@ -293,16 +293,28 @@ func (c *PassengerCollector) getMetrics(ctx context.Context, instance string) ([
 	return metrics, nil
 }
 
+func passengerStatusArgs(instance string) (string, []string) {
+	var command string
+	var args []string
+	if *useSudo {
+		command = "sudo"
+		args = []string{*passengerStatusPath}
+	} else {
+		command = *passengerStatusPath
+	}
+	if instance != "" {
+		args = append(args, []string{"--show=xml", "--pid-identifier", instance}...)
+	} else {
+		args = append(args, []string{"--show=xml"}...)
+	}
+	return command, args
+}
+
 func passengerStatus(ctx context.Context, instance string, logger *slog.Logger) (string, error) {
-	var cmds []string
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
-	if instance != "" {
-		cmds = []string{*passengerStatusPath, "--show=xml", "--pid-identifier", instance}
-	} else {
-		cmds = []string{*passengerStatusPath, "--show=xml"}
-	}
-	cmd := execCommand(ctx, "sudo", cmds...)
+	command, args := passengerStatusArgs(instance)
+	cmd := execCommand(ctx, command, args...)
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	err := cmd.Run()

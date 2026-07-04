@@ -38,6 +38,7 @@ Exporter metrics specific to status of the exporter
 
 ## Flags
 
+* `--no-sudo` - Turn off sudo usage, ie when running exporter as root user.
 * `--web.listen-address` - Listen address, defaults to `:9301`
 * `--collector.apache.status-url` - The URL to reach Apache's mod_status `/server-status` URL. If undefined the value will be determined by reading `ood_portal.yml`.
 

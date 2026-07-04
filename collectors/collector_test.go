@@ -72,6 +72,32 @@ func TestExecCommandHelper(t *testing.T) {
 	os.Exit(i)
 }
 
+func TestActivePunArgs(t *testing.T) {
+	if _, err := kingpin.CommandLine.Parse([]string{}); err != nil {
+		t.Fatal(err)
+	}
+	trueValue := true
+	falseValue := false
+	command, args := activePunArgs()
+	if command != "sudo" {
+		t.Errorf("Unexpected command, got %s", command)
+	}
+	expectedArgs := []string{"/opt/ood/nginx_stage/sbin/nginx_stage", "nginx_list"}
+	if !reflect.DeepEqual(args, expectedArgs) {
+		t.Errorf("Unexpected args\nExpected\n%v\nGot\n%v", expectedArgs, args)
+	}
+	useSudo = &falseValue
+	command, args = activePunArgs()
+	if command != "/opt/ood/nginx_stage/sbin/nginx_stage" {
+		t.Errorf("Unexpected command, got %s", command)
+	}
+	expectedArgs = []string{"nginx_list"}
+	if !reflect.DeepEqual(args, expectedArgs) {
+		t.Errorf("Unexpected args\nExpected\n%v\nGot\n%v", expectedArgs, args)
+	}
+	useSudo = &trueValue
+}
+
 func TestGetActivePuns(t *testing.T) {
 	if _, err := kingpin.CommandLine.Parse([]string{}); err != nil {
 		t.Fatal(err)
