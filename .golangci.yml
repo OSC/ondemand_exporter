@@ -1,4 +1,27 @@
-linters-settings:
-  errcheck:
-    exclude-functions:
-      - '(net/http.ResponseWriter).Write'
+---
+version: "2"
+linters:
+  settings:
+    errcheck:
+      exclude-functions:
+        - (net/http.ResponseWriter).Write
+        - (*github.com/prometheus/common/promslog.Level).Set
+        - syscall.Kill
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

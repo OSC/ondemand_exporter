@@ -2,6 +2,7 @@
 DOCKER_ARCHS ?= amd64 arm64
 DOCKER_REPO	 ?= ohiosupercomputer
 export GOPATH ?= $(firstword $(subst :, ,$(shell go env GOPATH)))
+GOLANGCI_LINT_VERSION := v2.11.4
 GOLANG_CROSS_VERSION ?= v1.23.3
 
 include Makefile.common
