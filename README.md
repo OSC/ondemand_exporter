@@ -105,7 +105,7 @@ systemctl start ondemand_exporter
 
 ## Build from source
 
-Requires cgo, so `gcc` must be installed.
+Requires cgo during build, so `gcc` must be installed.
 To produce the ondemand_exporter binary:
 
 ```
@@ -118,9 +118,8 @@ or
 go get github.com/OSC/ondemand_exporter
 ```
 
-PUN usernames are resolved with `os/user`, which only consults NSS, and so only
-sees users from sssd or LDAP, when cgo is enabled. Without it `/etc/passwd` is
-the only source and directory users go missing from the metrics with no error.
+PUN usernames are resolved to UIDs with `os/user`, which only consults NSS and so
+sees users from sssd or LDAP when cgo is enabled. The pure Go implementation, used when cgo is disabled or when `osusergo` build tag is set, parses `/etc/passwd` and nothing else.
 
 `make build` sets `CGO_ENABLED=1` via promu. Set it explicitly when using `go
 build`, which defaults to `CGO_ENABLED=0` if no C compiler is found rather than
