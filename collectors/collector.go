@@ -25,12 +25,10 @@ package collectors
 import (
 	"context"
 	"log/slog"
-	"maps"
 	"os"
 	"os/exec"
 	"os/user"
 	"runtime"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -114,38 +112,10 @@ func activePunArgs() (string, []string) {
 	return command, args
 }
 
-// getentUIDs resolves usernames to UIDs using getent(1). It exists because
-// user.Lookup only reads /etc/passwd when the exporter is built without cgo or
-// linked statically, which hides users provided by NSS modules such as sssd.
-// getent is dynamically linked, so it resolves those users, and it accepts
-// every name in a single call.
-func getentUIDs(ctx context.Context, usernames []string, logger *slog.Logger) map[string]string {
-	uids := make(map[string]string)
-	args := append([]string{"passwd"}, usernames...)
-	out, err := execCommand(ctx, "getent", args...).Output()
-	if err != nil {
-		// getent exits non-zero when any key is missing but still prints the
-		// entries it did resolve, so parse the output either way.
-		logger.Debug("Error executing getent passwd", "err", err)
-	}
-	for _, l := range strings.Split(string(out), "\n") {
-		fields := strings.Split(l, ":")
-		if len(fields) < 3 {
-			continue
-		}
-		if _, err := strconv.Atoi(fields[2]); err != nil {
-			continue
-		}
-		uids[fields[0]] = fields[2]
-	}
-	return uids
-}
-
+// getActivePuns lists the active PUNs and resolves each one to a UID.
 func getActivePuns(ctx context.Context, logger *slog.Logger) ([]string, []string, error) {
 	var puns []string
 	var punUIDs []string
-	var unresolved []string
-	uids := make(map[string]string)
 	command, args := activePunArgs()
 	out, err := execCommand(ctx, command, args...).Output()
 	if err != nil {
@@ -159,22 +129,10 @@ func getActivePuns(ctx context.Context, logger *slog.Logger) ([]string, []string
 		puns = append(puns, l)
 		user, err := userLookup(l)
 		if err != nil {
-			logger.Debug("Unable to lookup PUN username, will retry with getent", "pun", l, "err", err)
-			unresolved = append(unresolved, l)
+			logger.Error("Unable to lookup PUN username", "pun", l, "err", err)
 			continue
 		}
-		uids[l] = user.Uid
-	}
-	if len(unresolved) > 0 {
-		maps.Copy(uids, getentUIDs(ctx, unresolved, logger))
-	}
-	for _, pun := range puns {
-		uid, ok := uids[pun]
-		if !ok {
-			logger.Error("Unable to lookup PUN username", "pun", pun)
-			continue
-		}
-		punUIDs = append(punUIDs, uid)
+		punUIDs = append(punUIDs, user.Uid)
 	}
 	logger.Debug("Found PUNs", "puns", strings.Join(puns, ","), "punUIDs", strings.Join(punUIDs, ","))
 	return puns, punUIDs, nil

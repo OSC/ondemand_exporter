@@ -1,6 +1,6 @@
 ## 0.13.0 / 2026-09-23
 
-* [BUGFIX] Fall back to getent when a PUN username cannot be resolved with user.Lookup. Statically linked builds cannot load NSS modules, so PUN users provided by sssd or LDAP were dropped from the process and passenger metrics.
+* [DOCS] Document that `ondemand_exporter` must be built with cgo enabled. Resolving PUN usernames provided by a directory service such as sssd or LDAP relies on the cgo implementation of `os/user`; a build with `CGO_ENABLED=0` or the `osusergo` tag reads only `/etc/passwd` and silently drops those PUNs from the process and passenger metrics.
 * [ENHANCEMENT] Add --collector.passenger.user-label flag to add a `user` label to `ondemand_passenger_app_*` metrics. Off by default. When enabled, metrics that were previously aggregated across all users of an app are reported per user, so queries and dashboards relying on a single series per `app` need `sum by (app)` to get the old totals.
 
 ## 0.12.0 / 2026-07-04

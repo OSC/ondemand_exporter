@@ -105,7 +105,8 @@ systemctl start ondemand_exporter
 
 ## Build from source
 
-To produce the `ondemand_exporter` binary:
+Requires cgo, so `gcc` must be installed.
+To produce the ondemand_exporter binary:
 
 ```
 make build
@@ -115,6 +116,18 @@ or
 
 ```
 go get github.com/OSC/ondemand_exporter
+```
+
+PUN usernames are resolved with `os/user`, which only consults NSS, and so only
+sees users from sssd or LDAP, when cgo is enabled. Without it `/etc/passwd` is
+the only source and directory users go missing from the metrics with no error.
+
+`make build` sets `CGO_ENABLED=1` via promu. Set it explicitly when using `go
+build`, which defaults to `CGO_ENABLED=0` if no C compiler is found rather than
+failing:
+
+```
+CGO_ENABLED=1 go build -o ondemand_exporter .
 ```
 
 ## Install Grafana dashboard
