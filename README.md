@@ -30,6 +30,8 @@ All metrics are accessible via the `/metrics` location.
 * `ondemand_passenger_app_requests_total` - Requests made to passenger apps
 * `ondemand_passenger_app_average_runtime_seconds` - Average runtime in seconds of passenger apps
 
+All `ondemand_passenger_app_*` metrics carry an `app` label. Passing `--collector.passenger.user-label` adds a `user` label identifying the PUN owner, so these metrics become `{app="...",user="..."}`.
+
 Exporter metrics specific to status of the exporter
 
 * `ondemand_exporter_collect_duration_seconds{collector="apache|process|puns"}` - Duration of each collector
@@ -41,6 +43,7 @@ Exporter metrics specific to status of the exporter
 * `--no-sudo` - Turn off sudo usage, ie when running exporter as root user.
 * `--web.listen-address` - Listen address, defaults to `:9301`
 * `--collector.apache.status-url` - The URL to reach Apache's mod_status `/server-status` URL. If undefined the value will be determined by reading `ood_portal.yml`.
+* `--collector.passenger.user-label` - Add a `user` label to the `ondemand_passenger_app_*` metrics, identifying the PUN owner. Defaults to off. Enabling it reports one series per user per app rather than one series per app, so cardinality grows with the number of active users.
 
 ## Setup
 
@@ -102,7 +105,8 @@ systemctl start ondemand_exporter
 
 ## Build from source
 
-To produce the `ondemand_exporter` binary:
+Requires cgo during build, so `gcc` must be installed.
+To produce the ondemand_exporter binary:
 
 ```
 make build
@@ -112,6 +116,17 @@ or
 
 ```
 go get github.com/OSC/ondemand_exporter
+```
+
+PUN usernames are resolved to UIDs with `os/user`, which only consults NSS and so
+sees users from sssd or LDAP when cgo is enabled. The pure Go implementation, used when cgo is disabled or when `osusergo` build tag is set, parses `/etc/passwd` and nothing else.
+
+`make build` sets `CGO_ENABLED=1` via promu. Set it explicitly when using `go
+build`, which defaults to `CGO_ENABLED=0` if no C compiler is found rather than
+failing:
+
+```
+CGO_ENABLED=1 go build -o ondemand_exporter .
 ```
 
 ## Install Grafana dashboard

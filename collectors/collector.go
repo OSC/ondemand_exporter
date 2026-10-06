@@ -46,6 +46,7 @@ var (
 	useSudo         = kingpin.Flag("sudo", "Use sudo to execute commands").Default("true").Bool()
 	oodPortalPath   = "/etc/ood/config/ood_portal.yml"
 	execCommand     = exec.CommandContext
+	userLookup      = user.Lookup
 	timeNow         = getTimeNow
 	cores           = getCores
 	collectDuration = prometheus.NewDesc(
@@ -111,6 +112,7 @@ func activePunArgs() (string, []string) {
 	return command, args
 }
 
+// getActivePuns lists the active PUNs and resolves each one to a UID.
 func getActivePuns(ctx context.Context, logger *slog.Logger) ([]string, []string, error) {
 	var puns []string
 	var punUIDs []string
@@ -125,9 +127,9 @@ func getActivePuns(ctx context.Context, logger *slog.Logger) ([]string, []string
 			continue
 		}
 		puns = append(puns, l)
-		user, err := user.Lookup(l)
+		user, err := userLookup(l)
 		if err != nil {
-			logger.Error("Unable to lookup PUN username", "pun", l)
+			logger.Error("Unable to lookup PUN username", "pun", l, "err", err)
 			continue
 		}
 		punUIDs = append(punUIDs, user.Uid)

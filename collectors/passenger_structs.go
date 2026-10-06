@@ -32,6 +32,7 @@ type PassengerSuperGroup struct {
 
 type PassengerGroup struct {
 	AppRoot   string             `xml:"app_root"`
+	User      string             `xml:"user"`
 	Processes []PassengerProcess `xml:"processes>process"`
 }
 

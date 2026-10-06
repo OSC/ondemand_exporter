@@ -46,6 +46,7 @@ const (
 
 var (
 	passengerTimeout            = kingpin.Flag("collector.passenger.timeout", "Timeout for collecting Passenger metrics").Default("30").Envar("PASSENGER_TIMEOUT").Int()
+	passengerUserLabel          = kingpin.Flag("collector.passenger.user-label", "Add user label to Passenger app metrics").Default("false").Envar("PASSENGER_USER_LABEL").Bool()
 	passengerStatusPath         = kingpin.Flag("path.passenger-status", "Path to OnDemand passenger-status").Default("/usr/sbin/ondemand-passenger-status").Envar("PASSENGER_STATUS").String()
 	passengerStatusExec         = passengerStatus
 	passengerStatusExecInstance = passengerStatus
@@ -66,6 +67,7 @@ type PassengerCollector struct {
 
 type PassengerAppMetrics struct {
 	Name              string
+	User              string
 	Count             int
 	ProcCount         int
 	Processes         []PassengerProcessMetrics
@@ -75,6 +77,11 @@ type PassengerAppMetrics struct {
 	RequestsProcessed int
 	Runtime           int64
 }
+type passengerAppKey struct {
+	Name string
+	User string
+}
+
 type PassengerProcessMetrics struct {
 	RSS               int
 	CPU               float64
@@ -84,16 +91,20 @@ type PassengerProcessMetrics struct {
 }
 
 func NewPassengerCollector(logger *slog.Logger) *PassengerCollector {
+	appLabels := []string{"app"}
+	if *passengerUserLabel {
+		appLabels = append(appLabels, "user")
+	}
 	return &PassengerCollector{
 		logger:     logger,
 		Instances:  prometheus.NewDesc(prometheus.BuildFQName(namespace, "passenger", "instances"), "Number of Passenger instances", nil, nil),
-		Count:      prometheus.NewDesc(prometheus.BuildFQName(namespace, "passenger_app", "count"), "Count of passenger instances of an app", []string{"app"}, nil),
-		ProcCount:  prometheus.NewDesc(prometheus.BuildFQName(namespace, "passenger_app", "processes"), "Process count of an app", []string{"app"}, nil),
-		RSS:        prometheus.NewDesc(prometheus.BuildFQName(namespace, "passenger_app", "rss_bytes"), "RSS of passenger apps", []string{"app"}, nil),
-		RealMemory: prometheus.NewDesc(prometheus.BuildFQName(namespace, "passenger_app", "real_memory_bytes"), "Real memory of passenger apps", []string{"app"}, nil),
-		CPU:        prometheus.NewDesc(prometheus.BuildFQName(namespace, "passenger_app", "cpu_percent"), "CPU percent of passenger apps", []string{"app"}, nil),
-		Requests:   prometheus.NewDesc(prometheus.BuildFQName(namespace, "passenger_app", "requests_total"), "Requests made to passenger apps", []string{"app"}, nil),
-		AvgRuntime: prometheus.NewDesc(prometheus.BuildFQName(namespace, "passenger_app", "average_runtime_seconds"), "Average runtime in seconds of passenger apps", []string{"app"}, nil),
+		Count:      prometheus.NewDesc(prometheus.BuildFQName(namespace, "passenger_app", "count"), "Count of passenger instances of an app", appLabels, nil),
+		ProcCount:  prometheus.NewDesc(prometheus.BuildFQName(namespace, "passenger_app", "processes"), "Process count of an app", appLabels, nil),
+		RSS:        prometheus.NewDesc(prometheus.BuildFQName(namespace, "passenger_app", "rss_bytes"), "RSS of passenger apps", appLabels, nil),
+		RealMemory: prometheus.NewDesc(prometheus.BuildFQName(namespace, "passenger_app", "real_memory_bytes"), "Real memory of passenger apps", appLabels, nil),
+		CPU:        prometheus.NewDesc(prometheus.BuildFQName(namespace, "passenger_app", "cpu_percent"), "CPU percent of passenger apps", appLabels, nil),
+		Requests:   prometheus.NewDesc(prometheus.BuildFQName(namespace, "passenger_app", "requests_total"), "Requests made to passenger apps", appLabels, nil),
+		AvgRuntime: prometheus.NewDesc(prometheus.BuildFQName(namespace, "passenger_app", "average_runtime_seconds"), "Average runtime in seconds of passenger apps", appLabels, nil),
 	}
 }
 
@@ -117,19 +128,23 @@ func (c *PassengerCollector) collect(puns []string, ch chan<- prometheus.Metric)
 		}
 		return fmt.Errorf("%s", err)
 	}
-	appMetrics := make(map[string]PassengerAppMetrics)
+	appMetrics := make(map[passengerAppKey]PassengerAppMetrics)
 	for _, m := range metrics {
+		key := passengerAppKey{Name: m.Name}
+		if *passengerUserLabel {
+			key.User = m.User
+		}
 		var metric PassengerAppMetrics
-		am, ok := appMetrics[m.Name]
+		am, ok := appMetrics[key]
 		if ok {
-			c.logger.Debug("Existing app metric", "app", m.Name, "processes", len(m.Processes))
+			c.logger.Debug("Existing app metric", "app", m.Name, "user", m.User, "processes", len(m.Processes))
 			metric = am
 		} else {
-			c.logger.Debug("New app metric", "app", m.Name, "processes", len(m.Processes))
+			c.logger.Debug("New app metric", "app", m.Name, "user", m.User, "processes", len(m.Processes))
 			metric = m
 		}
 		metric.Count++
-		c.logger.Debug("App count", "app", m.Name, "count", metric.Count)
+		c.logger.Debug("App count", "app", m.Name, "user", m.User, "count", metric.Count)
 		for _, p := range m.Processes {
 			metric.ProcCount++
 			metric.RSS = metric.RSS + p.RSS
@@ -138,22 +153,26 @@ func (c *PassengerCollector) collect(puns []string, ch chan<- prometheus.Metric)
 			metric.RequestsProcessed = metric.RequestsProcessed + p.RequestsProcessed
 			metric.Runtime = metric.Runtime + p.Runtime
 		}
-		appMetrics[m.Name] = metric
+		appMetrics[key] = metric
 	}
-	for name, metric := range appMetrics {
-		ch <- prometheus.MustNewConstMetric(c.Count, prometheus.GaugeValue, float64(metric.Count), name)
-		ch <- prometheus.MustNewConstMetric(c.ProcCount, prometheus.GaugeValue, float64(metric.ProcCount), name)
-		ch <- prometheus.MustNewConstMetric(c.RSS, prometheus.GaugeValue, float64(metric.RSS), name)
-		ch <- prometheus.MustNewConstMetric(c.RealMemory, prometheus.GaugeValue, float64(metric.RealMemory), name)
-		ch <- prometheus.MustNewConstMetric(c.CPU, prometheus.GaugeValue, metric.CPU, name)
-		ch <- prometheus.MustNewConstMetric(c.Requests, prometheus.CounterValue, float64(metric.RequestsProcessed), name)
+	for key, metric := range appMetrics {
+		labels := []string{key.Name}
+		if *passengerUserLabel {
+			labels = append(labels, key.User)
+		}
+		ch <- prometheus.MustNewConstMetric(c.Count, prometheus.GaugeValue, float64(metric.Count), labels...)
+		ch <- prometheus.MustNewConstMetric(c.ProcCount, prometheus.GaugeValue, float64(metric.ProcCount), labels...)
+		ch <- prometheus.MustNewConstMetric(c.RSS, prometheus.GaugeValue, float64(metric.RSS), labels...)
+		ch <- prometheus.MustNewConstMetric(c.RealMemory, prometheus.GaugeValue, float64(metric.RealMemory), labels...)
+		ch <- prometheus.MustNewConstMetric(c.CPU, prometheus.GaugeValue, metric.CPU, labels...)
+		ch <- prometheus.MustNewConstMetric(c.Requests, prometheus.CounterValue, float64(metric.RequestsProcessed), labels...)
 		var runtime float64
 		if metric.ProcCount > 0 {
 			runtime = float64(metric.Runtime / int64(metric.ProcCount))
 		} else {
 			runtime = 0
 		}
-		ch <- prometheus.MustNewConstMetric(c.AvgRuntime, prometheus.GaugeValue, runtime, name)
+		ch <- prometheus.MustNewConstMetric(c.AvgRuntime, prometheus.GaugeValue, runtime, labels...)
 	}
 	ch <- prometheus.MustNewConstMetric(c.Instances, prometheus.GaugeValue, float64(len(instances)))
 	ch <- prometheus.MustNewConstMetric(collectDuration, prometheus.GaugeValue, time.Since(collectTime).Seconds(), "passenger")
@@ -278,6 +297,7 @@ func (c *PassengerCollector) getMetrics(ctx context.Context, instance string) ([
 		var metric PassengerAppMetrics
 		name := s.Group.AppRoot
 		metric.Name = name
+		metric.User = s.Group.User
 		for _, p := range s.Group.Processes {
 			var processMetrics PassengerProcessMetrics
 			processMetrics.RSS = p.RSS * 1024
